@@ -1,0 +1,55 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <ModType>mod</ModType>
+    <ModMain>DeadCellsMultiplayerX.ModEntry</ModMain>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AutoInstallMod Condition="'$(Configuration)' == 'Debug'">true</AutoInstallMod>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Platform>x64</Platform>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DeadCellsCoreModding.MDK" Version="1.0.1" />
+    <PackageReference Include="Microsoft.Native.Quic.MsQuic.OpenSSL" Version="2.5.8" />
+    <PackageReference Include="StbImageSharp" Version="2.30.15" />
+    <PackageReference Include="StreamJsonRpc" Version="2.25.25" />
+
+    <ModDependency Include="DebugConsole" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="HashlinkSharp" />
+    <Reference Include="ModCore.Native" />
+    <Reference Include="DebugConsole" />
+
+    <OutputFiles Include="msquic.dll" />
+    
+    <OutputFiles Include="$(OutputPath)/StreamJsonRpc.dll" />
+    <OutputFiles Include="$(OutputPath)/StbImageSharp.dll" />
+    <OutputFiles Include="$(OutputPath)/Nerdbank.MessagePack.dll" />
+    <OutputFiles Include="$(OutputPath)/MessagePack.Annotations.dll" />
+    <OutputFiles Include="$(OutputPath)/MessagePack.dll" />
+    <OutputFiles Include="$(OutputPath)/Microsoft.NET.StringTools.dll" />
+    <OutputFiles Include="$(OutputPath)/Microsoft.VisualStudio.Threading.dll" />
+    <OutputFiles Include="$(OutputPath)/Microsoft.VisualStudio.Validation.dll" />
+    <OutputFiles Include="$(OutputPath)/Nerdbank.Streams.dll" />
+    <OutputFiles Include="$(OutputPath)/PolyType.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Client\UI\" />
+    <Folder Include="Server\Events\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="msquic.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

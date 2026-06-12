@@ -1,0 +1,155 @@
+﻿using dc;
+using dc.h3d.mat;
+using dc.haxe.io;
+using dc.hxd;
+using dc.hxd.res;
+using dc.hxsl;
+using dc.libs.heaps.slib;
+using dc.pr;
+using dc.tool;
+using Hashlink;
+using Hashlink.Marshaling;
+using Hashlink.Proxy;
+using Hashlink.Proxy.Objects;
+using Hashlink.Reflection;
+using Hashlink.Reflection.Types;
+using ModCore;
+using ModCore.Events;
+using ModCore.Events.Interfaces.Game;
+using ModCore.Utilities;
+using StbImageSharp;
+using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Text;
+
+namespace DeadCellsMultiplayerX.Server
+{
+    internal class ServerMain : Module<ServerMain>,
+        IOnBeforeGameInit
+    {
+        /// <summary>
+        /// 服务器入口点
+        /// 
+        /// </summary>
+        public static void Entrypoint()
+        {
+            _  = new ServerMain();
+
+            // 启动游戏
+            System.Type.GetType("ModCore.Startup, ModCore", true)!
+                .GetMethod("StartGame")!
+                .CreateDelegate<Func<int>>()
+                ();
+        }
+
+        void IOnBeforeGameInit.OnBeforeGameInit()
+        {
+            Init();
+        }
+
+        public Thread? MainThread { get; private set; }
+
+        public readonly string savePath = System.IO.Path.GetTempFileName();
+        private ServerSession? session;
+        /// <summary>
+        /// 初始化服务器
+        /// </summary>
+        internal void Init()
+        {
+            MainThread = Thread.CurrentThread;
+
+            //隐藏服务器的窗口
+            Hook__Window.__constructor__ += Hook__Window___constructor__;
+            Hook_Window.setFullScreen += Hook_Window_setFullScreen;
+
+            //减少不必要的资源加载
+            Hook_Loader.loadCache += Hook_Loader_loadCache;
+            Hook_Texture.dispose += Hook_Texture_dispose;
+            Hook_Boot.render += Hook_Boot_render;
+            Hook_SpriteLib.getNormalMapFromGroup += Hook_SpriteLib_getNormalMapFromGroup;
+            Hook_SpriteLib.getNormalMapFromSprite += Hook_SpriteLib_getNormalMapFromSprite;
+
+
+            //避免影响本地存档
+            Hook__Save.fileName += Hook__Save_fileName;
+            Hook_TitleScreen.initTitleScreen += Hook_TitleScreen_initTitleScreen;
+
+            dc.tool.File.Class.PATH = System.IO.Path.GetDirectoryName(savePath)!.AsHaxeString();
+        }
+
+        private void Hook_TitleScreen_initTitleScreen(Hook_TitleScreen.orig_initTitleScreen orig, TitleScreen self, 
+            SpriteLib titleLib, HaxeProxy.Runtime.Ref<int> bgType)
+        {
+            orig(self, titleLib, bgType);
+
+            if (session != null)
+            {
+                return;
+            }
+
+            session = new();
+            _ = session.Init();
+        }
+
+        private void Hook_Boot_render(Hook_Boot.orig_render orig, Boot self, dc.h3d.Engine e)
+        {
+
+        }
+
+       
+        private dc.String Hook__Save_fileName(Hook__Save.orig_fileName orig, int? slot)
+        {
+            return System.IO.Path.GetFileName(savePath).AsHaxeString();
+        }
+
+        private void Hook_Window_setFullScreen(Hook_Window.orig_setFullScreen orig, Window self, bool v)
+        {
+            
+        }
+
+        private void Hook__Window___constructor__(Hook__Window.orig___constructor__ orig, Window arg1, dc.String title, int width, int height)
+        {
+            orig(arg1, title, 0, 0);
+
+            SDL2.SDL.SDL_HideWindow(arg1.window.win);
+        }
+
+        private Texture Hook_SpriteLib_getNormalMapFromSprite(Hook_SpriteLib.orig_getNormalMapFromSprite orig, SpriteLib self, HSprite sprite)
+        {
+            return null!;
+        }
+
+        private Texture Hook_SpriteLib_getNormalMapFromGroup(Hook_SpriteLib.orig_getNormalMapFromGroup orig, SpriteLib self, dc.String groupName)
+        {
+            return null!;
+        }
+
+        private void Hook_Texture_dispose(Hook_Texture.orig_dispose orig, Texture self)
+        {
+           
+        }
+
+        private Image? img4096x4096;
+        private Sound? soundEmpty;
+
+        private Resource Hook_Loader_loadCache(Hook_Loader.orig_loadCache orig, Loader self, dc.String path, dc.hl.Class c)
+        {
+            var p = path.ToString();
+
+            if(c == Image.Class)
+            {
+                return img4096x4096 ??= new Image(self.load("atlas/beheaded0.png".AsHaxeString()).entry);
+            }
+            else if(c == Sound.Class)
+            {
+                return soundEmpty ??= new Sound(self.load("sfx/noSound_Error.wav".AsHaxeString()).entry);
+            }
+
+            return orig(self, path, c);
+            
+        }
+
+    }
+}
