@@ -21,6 +21,8 @@ namespace DeadCellsMultiplayerX
             var guest = ClientMain.Instance.CurrentGuestClient!;
             guest.SetReady(true);
 
+            await Task.Delay(500);
+
             await ClientMain.Instance.CurrentHostClient!.StartGame();
         }
     }

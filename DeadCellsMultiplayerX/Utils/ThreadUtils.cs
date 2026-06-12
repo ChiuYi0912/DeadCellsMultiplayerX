@@ -26,5 +26,9 @@ namespace DeadCellsMultiplayerX.Utils
             var cts = cancellationToken.CombineWith(another);
             return cts.Token;
         }
+        public static CancellationToken Combine(this CancellationToken cancellationToken, params CancellationToken[] another)
+        {
+            return cancellationToken.CombineWith(another).Token;
+        }
     }
 }

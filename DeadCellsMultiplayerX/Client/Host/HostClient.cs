@@ -19,6 +19,8 @@ namespace DeadCellsMultiplayerX.Client.Host
     {
         private readonly List<GuestConnection> guests = [];
 
+        private readonly CancellationTokenSource acceptGuestsCancelSource = new();
+
         public HostSession? session;
 
         /// <summary>
@@ -39,12 +41,14 @@ namespace DeadCellsMultiplayerX.Client.Host
         /// <exception cref="InvalidOperationException"></exception>
         public async Task StartGame()
         {
-            if(CanStartGame)
+            if(!CanStartGame)
             {
                 throw new InvalidOperationException();
             }
 
             await Task.Delay(1).ConfigureAwait(false);
+
+            acceptGuestsCancelSource.Cancel();
 
             LobbyInfo.IsStarted = true;
 
@@ -104,7 +108,7 @@ namespace DeadCellsMultiplayerX.Client.Host
                 cancellationToken.ThrowIfCancellationRequested();
 
                 Logger.Information("Waiting connection...");
-                var connect = await listener.WaitConnect(cancellationToken.Combine(DisposeToken));
+                var connect = await listener.WaitConnect(cancellationToken.Combine(DisposeToken, acceptGuestsCancelSource.Token));
 
                 Logger.Information("Connecting...");
                 var gConnect = new GuestConnection(this, connect);

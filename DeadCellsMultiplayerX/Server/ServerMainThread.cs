@@ -1,5 +1,9 @@
 ﻿using dc;
+using dc.pr;
 using DeadCellsMultiplayerX.Common;
+using DeadCellsMultiplayerX.Server.Events;
+using ModCore.Events;
+using ModCore.Storage;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -13,6 +17,9 @@ namespace DeadCellsMultiplayerX.Server
     internal class ServerMainThread(ServerSession session) : DisposableEventReceiver
     {
         public ILogger Logger { get; } = Log.Logger.ForContext<ServerMainThread>();
+
+        public string? savePath;
+
         private static void CheckMainThread()
         {
             if(Thread.CurrentThread != ServerMain.Instance.MainThread)
@@ -35,11 +42,33 @@ namespace DeadCellsMultiplayerX.Server
 
             CheckMainThread();
 
+            savePath = null;
+
             Logger.Information("Launching game...");
 
             Main.Class.ME.launchGame(new LaunchMode.NewGame(false, false), null, null);
 
-            
+            while(true)
+            {
+                await Task.Delay(1);
+                if(Game.Class.ME?.hero != null)
+                {
+                    break;
+                }
+            }
+
+            EnterNewLevel();
+        }
+
+        public void EnterNewLevel()
+        {
+            Logger.Information("Entering new level...");
+
+            Logger.Information("Saving game...");
+            Main.Class.ME.writeSave();
+
+            savePath = ServerMain.Instance.savePath;
+            EventSystem.BroadcastEvent<IOnServerEnterNewLevel>();
         }
     }
 }

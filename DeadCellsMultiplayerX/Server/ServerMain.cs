@@ -61,22 +61,34 @@ namespace DeadCellsMultiplayerX.Server
             MainThread = Thread.CurrentThread;
 
             //隐藏服务器的窗口
-            Hook__Window.__constructor__ += Hook__Window___constructor__;
+            //Hook__Window.__constructor__ += Hook__Window___constructor__;
             Hook_Window.setFullScreen += Hook_Window_setFullScreen;
 
             //减少不必要的资源加载
             Hook_Loader.loadCache += Hook_Loader_loadCache;
             Hook_Texture.dispose += Hook_Texture_dispose;
-            Hook_Boot.render += Hook_Boot_render;
+            //Hook_Boot.render += Hook_Boot_render;
             Hook_SpriteLib.getNormalMapFromGroup += Hook_SpriteLib_getNormalMapFromGroup;
             Hook_SpriteLib.getNormalMapFromSprite += Hook_SpriteLib_getNormalMapFromSprite;
 
 
             //避免影响本地存档
             Hook__Save.fileName += Hook__Save_fileName;
+
+            //避免影响本地配置
+            var options = Options.Class.load();
+            dc.tool.File.Class.PATH = System.IO.Path.GetDirectoryName(savePath)!.AsHaxeString();
+            dc.Options.Class.FILE = System.IO.Path.GetFileName(System.IO.Path.GetTempFileName()).AsHaxeString();
+
+            options.skipCinematics = true; //跳过动画
+            options.disableLoreRooms = true; //关闭剧情房
+
+            options.save();
+
+
             Hook_TitleScreen.initTitleScreen += Hook_TitleScreen_initTitleScreen;
 
-            dc.tool.File.Class.PATH = System.IO.Path.GetDirectoryName(savePath)!.AsHaxeString();
+            
         }
 
         private void Hook_TitleScreen_initTitleScreen(Hook_TitleScreen.orig_initTitleScreen orig, TitleScreen self, 
@@ -111,7 +123,7 @@ namespace DeadCellsMultiplayerX.Server
 
         private void Hook__Window___constructor__(Hook__Window.orig___constructor__ orig, Window arg1, dc.String title, int width, int height)
         {
-            orig(arg1, title, 0, 0);
+            orig(arg1, title, 1, 1);
 
             SDL2.SDL.SDL_HideWindow(arg1.window.win);
         }

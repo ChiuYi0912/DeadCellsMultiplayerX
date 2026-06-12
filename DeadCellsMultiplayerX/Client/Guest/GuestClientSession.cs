@@ -1,8 +1,12 @@
-﻿using dc.tool;
+﻿using dc;
+using dc.en;
+using dc.en.inter;
+using dc.tool;
 using DeadCellsMultiplayerX.Client.Host;
 using DeadCellsMultiplayerX.Server;
 using DeadCellsMultiplayerX.Utils;
 using ModCore.Modules;
+using ModCore.Utilities;
 using StreamJsonRpc;
 using System;
 using System.Collections.Generic;
@@ -14,15 +18,17 @@ namespace DeadCellsMultiplayerX.Client.Guest
     /// <summary>
     /// 访客的客户端 session
     /// </summary>
-    internal class GuestClientSession(GuestClient client, Stream serverStream) : ClientSession
+    internal class GuestClientSession(GuestClient client, Stream serverStream) : ClientSession, IGuestRPC
     {
         private JsonRpc? rpc;
         private IServerRPC server = null!;
         private bool isOwner = false;
+        private byte[]? saveData = null;
 
         public override async Task Init()
         {
             rpc = serverStream.CreateJsonRpc();
+            rpc.AddLocalRpcTarget(this);
 
             server = rpc.Attach<IServerRPC>();
 
@@ -58,11 +64,27 @@ namespace DeadCellsMultiplayerX.Client.Guest
                 //必须使用现有存档进行联机
                 Debug.Assert(System.IO.File.Exists(fp));
 
-                using var fs = System.IO.File.OpenRead(fp);
-                await server.UploadSavedata(fs, (int)fs.Length);
+                await server.UploadSavedata(await System.IO.File.ReadAllBytesAsync(fp));
             }
 
-            Logger.Information("Downloading savedata...");
+            Hook__Save.save += Hook__Save_save;
+            dc.tool.Hook__File.getBytes += Hook__File_getBytes;
+        }
+
+        private dc.haxe.io.Bytes Hook__File_getBytes(Hook__File.orig_getBytes orig, dc.String file)
+        {
+            var fn = file.ToString();
+            if(fn.StartsWith("user_") && saveData != null)
+            {
+                var bytes = dc.haxe.io.Bytes.Class.alloc(saveData.Length);
+                saveData.CopyTo(bytes.AsSpan());
+                return bytes;
+            }
+            return orig(file);
+        }
+
+        private void Hook__Save_save(Hook__Save.orig_save orig, dc.User u, bool onlyGameData)
+        {
             
         }
 
@@ -81,6 +103,53 @@ namespace DeadCellsMultiplayerX.Client.Guest
             base.MyDispose();
 
             serverStream?.Dispose();
+
+            Hook__Save.save -= Hook__Save_save;
+        }
+
+        /// <summary>
+        /// 载入新 level 并初始化
+        /// 
+        /// 清除所有的 entity
+        /// </summary>
+        /// <param name="saveData"></param>
+        /// <returns></returns>
+        public async Task EnterNewLevel(byte[] saveData)
+        {
+            this.saveData = saveData;
+
+            Logger.Information("Entering new level...");
+            Main.Class.ME.cleanUser();
+            Main.Class.ME.launchGame(new LaunchMode.LoadSave(), null, null);
+
+            while (true)
+            {
+                await Task.Delay(1);
+                if (dc.pr.Game.Class.ME?.curLevel != null)
+                {
+                    break;
+                }
+            }
+
+            Logger.Information("Clearing entities...");
+
+            var gm = dc.pr.Game.Class.ME;
+            var level = gm.curLevel;
+
+            List<Entity> entities = [];
+            foreach(Entity v in level.entities)
+            {
+                if(v is Hero ||
+                    v is ZDoor)
+                {
+                    continue;
+                }
+                entities.Add(v);
+            }
+            foreach (var v in entities)
+            {
+                v.destroy();
+            }
         }
     }
 }

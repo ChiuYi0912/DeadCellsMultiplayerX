@@ -1,7 +1,10 @@
 ﻿using DeadCellsMultiplayerX.Client;
+using DeadCellsMultiplayerX.Client.Guest;
 using DeadCellsMultiplayerX.Client.Host;
 using DeadCellsMultiplayerX.Client.Networks;
 using DeadCellsMultiplayerX.Common;
+using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Server.Events;
 using DeadCellsMultiplayerX.Utils;
 using Microsoft.VisualStudio.Threading;
 using ModCore.Events;
@@ -10,13 +13,15 @@ using Serilog;
 using StreamJsonRpc;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 namespace DeadCellsMultiplayerX.Server
 {
     internal class SGuestConnection :
         DisposableEventReceiver,
-        IServerRPC
+        IServerRPC,
+        IOnServerEnterNewLevel
     {
         private readonly JsonRpc rpc;
         public GuestInfo guestInfo = new();
@@ -24,6 +29,7 @@ namespace DeadCellsMultiplayerX.Server
         public GuestInfo GuestInfo { get; set; } = new();
         public ServerSession Session { get; }
         public ServerMainThread Main => Session.Main;
+        public IGuestRPC guest;
         public SGuestConnection(ServerSession session, Stream connection)
         {
             Session = session;
@@ -32,6 +38,8 @@ namespace DeadCellsMultiplayerX.Server
             rpc = connection.CreateJsonRpc();
 
             rpc.AddLocalRpcTarget(this);
+
+            guest = rpc.Attach<IGuestRPC>();
 
             rpc.SynchronizationContext = Game.SynchronizationContext;
 
@@ -90,14 +98,10 @@ namespace DeadCellsMultiplayerX.Server
             return Task.CompletedTask;
         }
 
-        public async Task UploadSavedata(Stream savedata, int length)
+        public async Task UploadSavedata(byte[] data)
         {
             await Task.Delay(1).ConfigureAwait(false);
 
-            Logger.Information("Downloading savedata({size})...", length);
-
-            using var reader = new BinaryReader(savedata, Encoding.UTF8, false);
-            var data = reader.ReadBytes(length);
             var savePath = ServerMain.Instance.savePath;
 
             await File.WriteAllBytesAsync(savePath, data);
@@ -111,7 +115,43 @@ namespace DeadCellsMultiplayerX.Server
             await Task.Delay(1).ConfigureAwait(false);
         }
 
-        public Task<(Stream, int)> DownloadSavedata()
+        public async Task<byte[]> DownloadSavedata()
+        {
+            while(string.IsNullOrEmpty(Main.savePath))
+            {
+                await Task.Yield();
+            }
+            return File.ReadAllBytes(Main.savePath);
+        }
+
+        void IOnServerEnterNewLevel.OnServerEnterNewLevel()
+        {
+            Debug.Assert(Main.savePath != null);
+
+            guest.EnterNewLevel(File.ReadAllBytes(Main.savePath));
+        }
+
+        public async Task<AreaInfo> RequestAreaInfo(IServerRPC.AreaInfoRequest request)
+        {
+            if(request.X < 0)
+            {
+                request.X = 0;
+            }
+            if (request.Y < 0)
+            {
+                request.Y = 0;
+            }
+            var areaInfo = new AreaInfo()
+            {
+                X = request.X,
+                Y = request.Y,
+                Width = request.Width,
+                Height = request.Height
+            };
+            return areaInfo;
+        }
+
+        public Task<EntityInfo> RequestEntityInfo(string guid)
         {
             throw new NotImplementedException();
         }
