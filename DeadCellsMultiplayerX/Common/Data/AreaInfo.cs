@@ -10,7 +10,7 @@ namespace DeadCellsMultiplayerX.Common.Data
         public int Y { get; set; }
         public int Width { get; set; }
         public int Height { get; set; }
-        public bool[]? Collision { get; set; }
+        public int[]? Collision { get; set; }
         public List<EntityInfo> Entities { get; set; } = [];
 
     }

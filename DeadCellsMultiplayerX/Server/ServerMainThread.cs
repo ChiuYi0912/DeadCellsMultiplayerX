@@ -16,7 +16,6 @@ namespace DeadCellsMultiplayerX.Server
     /// </summary>
     internal class ServerMainThread(ServerSession session) : DisposableEventReceiver
     {
-        public ILogger Logger { get; } = Log.Logger.ForContext<ServerMainThread>();
 
         public string? savePath;
 

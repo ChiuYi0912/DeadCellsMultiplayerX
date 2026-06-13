@@ -1,76 +1,17 @@
-﻿using DeadCellsMultiplayerX.Client;
-using DeadCellsMultiplayerX.Client.Guest;
-using DeadCellsMultiplayerX.Client.Host;
-using DeadCellsMultiplayerX.Client.Networks;
+﻿using dc;
+using DeadCellsMultiplayerX.Client;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
-using DeadCellsMultiplayerX.Server.Events;
 using DeadCellsMultiplayerX.Utils;
-using Microsoft.VisualStudio.Threading;
-using ModCore.Events;
-using ModCore.Modules;
-using Serilog;
-using StreamJsonRpc;
+using ModCore.Utilities;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Text;
 
 namespace DeadCellsMultiplayerX.Server
 {
-    internal class SGuestConnection :
-        DisposableEventReceiver,
-        IServerRPC,
-        IOnServerEnterNewLevel
+    internal partial class SGuestConnection : IServerRPC
     {
-        private readonly JsonRpc rpc;
-        public GuestInfo guestInfo = new();
-        public ILogger Logger { get; }
-        public GuestInfo GuestInfo { get; set; } = new();
-        public ServerSession Session { get; }
-        public ServerMainThread Main => Session.Main;
-        public IGuestRPC guest;
-        public SGuestConnection(ServerSession session, Stream connection)
-        {
-            Session = session;
-            Logger = Log.ForContext("SourceContext", "Server-Guest-" + guestInfo.Guid);
-
-            rpc = connection.CreateJsonRpc();
-
-            rpc.AddLocalRpcTarget(this);
-
-            guest = rpc.Attach<IGuestRPC>();
-
-            rpc.SynchronizationContext = Game.SynchronizationContext;
-
-            rpc.Disconnected += Rpc_Disconnected;
-
-            rpc.StartListening();
-
-            Logger.Information("Connected.");
-        }
-
-        private void Rpc_Disconnected(object? sender, JsonRpcDisconnectedEventArgs e)
-        {
-            if (e.Reason == DisconnectedReason.LocallyDisposed)
-            {
-                return;
-            }
-            Logger.Error(e.Exception, "Abort connection: {reason}: {desc}", e.Reason, e.Description);
-            Dispose();
-        }
-
-        protected override void MyDispose()
-        {
-            base.MyDispose();
-
-            rpc?.Dispose();
-        }
-
-
-
-        // IServerRPC
-
         public Task<bool> CheckVersion(string version)
         {
             if (Version.Parse(version) != VersionUtils.ModVersion)
@@ -117,23 +58,16 @@ namespace DeadCellsMultiplayerX.Server
 
         public async Task<byte[]> DownloadSavedata()
         {
-            while(string.IsNullOrEmpty(Main.savePath))
+            while (string.IsNullOrEmpty(Main.savePath))
             {
                 await Task.Yield();
             }
             return File.ReadAllBytes(Main.savePath);
         }
 
-        void IOnServerEnterNewLevel.OnServerEnterNewLevel()
-        {
-            Debug.Assert(Main.savePath != null);
-
-            guest.EnterNewLevel(File.ReadAllBytes(Main.savePath));
-        }
-
         public async Task<AreaInfo> RequestAreaInfo(IServerRPC.AreaInfoRequest request)
         {
-            if(request.X < 0)
+            if (request.X < 0)
             {
                 request.X = 0;
             }
@@ -148,6 +82,56 @@ namespace DeadCellsMultiplayerX.Server
                 Width = request.Width,
                 Height = request.Height
             };
+
+            var lvl = (dc.pr.Level)dc.pr.Game.Class.ME.subLevels.getDyn(request.SubLevelId);
+            var map = lvl.map;
+
+            areaInfo.Collision = new int[areaInfo.Width * areaInfo.Height];
+
+            // 碰撞箱
+            unsafe
+            {
+                var src = new Span<int>((void*)map.collisions.bytes, map.collisions.length);
+                for (int y = 0; y < areaInfo.Height; y++)
+                {
+                    var dst = new Span<int>(areaInfo.Collision, y * areaInfo.Width, areaInfo.Width);
+                    src.Slice((areaInfo.Y + y) * map.wid + areaInfo.X, areaInfo.Width).CopyTo(dst);
+                }
+            }
+
+            // Entity
+            {
+                var rx = areaInfo.X;
+                var ry = areaInfo.Y;
+                var rxt = areaInfo.X + areaInfo.Width;
+                var ryt = areaInfo.Y + areaInfo.Height;
+
+                foreach (Entity v in lvl.entities)
+                {
+                    if (v.cx >= rx && v.cx <= rxt && v.cy >= ry && v.cy <= ryt && v.visible)
+                    {
+                        EntityInfo inf = GetEntityInfo(v).info;
+
+                        inf.TypeName = v.GetType().FullName;
+
+                        EntitySerializer.Serialize(inf, v);
+
+                        var spr = v.spr;
+                        if (spr != null)
+                        {
+                            if (ServerMain.Instance.spriteLib2altas.TryGetValue(spr.lib, out var atlasPath))
+                            {
+                                inf.AtlasName = atlasPath;
+                                inf.GroupName = spr.groupName.ToString();
+                                inf.Frame = spr.frame;
+                            }
+                        }
+
+                        areaInfo.Entities.Add(inf);
+                    }
+                }
+            }
+
             return areaInfo;
         }
 
@@ -156,7 +140,11 @@ namespace DeadCellsMultiplayerX.Server
             throw new NotImplementedException();
         }
 
-        //
+        public Task<long> GetTimeStamp()
+        {
+            return Task.FromResult(Session.CurrentTimeStamp);
+        }
+
 
     }
 }

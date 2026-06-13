@@ -25,8 +25,6 @@ namespace DeadCellsMultiplayerX.Client.Host
         private Process? serverProcess;
         private bool canJoin = true;
 
-        public ILogger Logger { get; } = Log.Logger.ForContext<HostSession>();
-
         public async Task Init()
         {
             await Task.Yield().ConfigureAwait(false); //不在主线程上执行

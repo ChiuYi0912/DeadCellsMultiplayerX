@@ -2,9 +2,13 @@
 using dc.en;
 using dc.en.inter;
 using dc.tool;
+using DeadCellsMultiplayerX.Client.Guest.Ghost;
 using DeadCellsMultiplayerX.Client.Host;
 using DeadCellsMultiplayerX.Server;
 using DeadCellsMultiplayerX.Utils;
+using Microsoft.VisualStudio.Threading;
+using ModCore.Events.Interfaces.Game;
+using ModCore.Events.Interfaces.Game.Hero;
 using ModCore.Modules;
 using ModCore.Utilities;
 using StreamJsonRpc;
@@ -18,15 +22,33 @@ namespace DeadCellsMultiplayerX.Client.Guest
     /// <summary>
     /// 访客的客户端 session
     /// </summary>
-    internal class GuestClientSession(GuestClient client, Stream serverStream) : ClientSession, IGuestRPC
+    internal class GuestClientSession(GuestClient client, Stream serverStream) : ClientSession, 
+        IGuestRPC,
+        IOnFrameUpdate
     {
         private JsonRpc? rpc;
         private IServerRPC server = null!;
         private bool isOwner = false;
-        private byte[]? saveData = null;
+        private byte[]? saveData;
+        private WorldDirector? worldDirector;
+
+        private long lastSyncStopwatchTime = 0;
+        private long prevStopwatchTime = 0;
+        private readonly Stopwatch stopwatch = new();
+
+        /// <summary>
+        /// 当前服务器时间 (ms)
+        /// </summary>
+        public long CurrentTimeStamp { get; private set; }
+
+        public IServerRPC Server => server ?? throw new InvalidOperationException();
+
+        public dc.pr.Game Game => dc.pr.Game.Class.ME;
 
         public override async Task Init()
         {
+            stopwatch.Start();
+
             rpc = serverStream.CreateJsonRpc();
             rpc.AddLocalRpcTarget(this);
 
@@ -95,6 +117,12 @@ namespace DeadCellsMultiplayerX.Client.Guest
                 return;
             }
             Logger.Error(e.Exception, "Abort connection: {reason}: {desc}", e.Reason, e.Description);
+
+            ModCore.Modules.Game.SynchronizationContext.Post(_ =>
+            {
+                Boot.Class.ME.returnToMainMenu();
+            }, null);
+
             Dispose();
         }
 
@@ -104,13 +132,13 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
             serverStream?.Dispose();
 
+            worldDirector?.Dispose();
+
             Hook__Save.save -= Hook__Save_save;
         }
 
         /// <summary>
         /// 载入新 level 并初始化
-        /// 
-        /// 清除所有的 entity
         /// </summary>
         /// <param name="saveData"></param>
         /// <returns></returns>
@@ -139,8 +167,7 @@ namespace DeadCellsMultiplayerX.Client.Guest
             List<Entity> entities = [];
             foreach(Entity v in level.entities)
             {
-                if(v is Hero ||
-                    v is ZDoor)
+                if(v is Hero)
                 {
                     continue;
                 }
@@ -150,6 +177,45 @@ namespace DeadCellsMultiplayerX.Client.Guest
             {
                 v.destroy();
             }
+
+            worldDirector?.Dispose();
+            worldDirector = new(this);
+            await worldDirector.Init();
+        }
+
+        private void UpdateTimeStamp()
+        {
+            if (prevStopwatchTime == 0)
+            {
+                prevStopwatchTime = stopwatch.ElapsedMilliseconds;
+                return;
+            }
+
+            CurrentTimeStamp += stopwatch.ElapsedMilliseconds - prevStopwatchTime;
+            prevStopwatchTime = stopwatch.ElapsedMilliseconds;
+
+            if(stopwatch.ElapsedMilliseconds - lastSyncStopwatchTime > 5 * 1000 ||
+                lastSyncStopwatchTime == 0)
+            {
+                long startTime;
+                //与服务器同步
+                async Task SyncWithServer()
+                {
+                    startTime = stopwatch.ElapsedMilliseconds;
+                    var time = await Server.GetTimeStamp();
+                    CurrentTimeStamp = time + (stopwatch.ElapsedMilliseconds - startTime) / 2;
+                }
+                SyncWithServer().Forget();
+            }
+        }
+
+        void IOnFrameUpdate.OnFrameUpdate(double dt)
+        {
+
+            // 同步 TimeStamp
+            UpdateTimeStamp();
+
+            
         }
     }
 }

@@ -15,7 +15,6 @@ namespace DeadCellsMultiplayerX.Client
     public abstract class ClientSession : DisposableEventReceiver
     {
 
-        public static ILogger Logger => ClientMain.Logger;
 
         public virtual async Task Init()
         {

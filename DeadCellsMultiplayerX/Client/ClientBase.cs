@@ -10,13 +10,6 @@ namespace DeadCellsMultiplayerX.Client
 {
     public abstract class ClientBase : DisposableEventReceiver
     {
-        public ILogger Logger { get; }
-
-
-        public ClientBase()
-        {
-            Logger = Log.Logger.ForContext(GetType());
-        }
 
         protected override void MyDispose()
         {

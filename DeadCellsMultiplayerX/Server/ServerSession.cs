@@ -1,5 +1,7 @@
-﻿using Microsoft.VisualStudio.Threading;
+﻿using DeadCellsMultiplayerX.Common;
+using Microsoft.VisualStudio.Threading;
 using ModCore;
+using ModCore.Events.Interfaces.Game;
 using Nerdbank.Streams;
 using System;
 using System.Collections.Generic;
@@ -9,7 +11,8 @@ using System.Text;
 
 namespace DeadCellsMultiplayerX.Server
 {
-    internal class ServerSession : Module<ServerSession>
+    internal class ServerSession : DisposableEventReceiver,
+        IOnFrameUpdate
     {
         public AnonymousPipeClientStream outPipe = new(PipeDirection.Out, Environment.GetEnvironmentVariable("DCMP_HOST_IN_PIPE")!);
         public AnonymousPipeClientStream inPipe = new(PipeDirection.In, Environment.GetEnvironmentVariable("DCMP_HOST_OUT_PIPE")!);
@@ -21,6 +24,11 @@ namespace DeadCellsMultiplayerX.Server
 
         private readonly List<SGuestConnection> guests = [];
 
+        private readonly Stopwatch stopwatch = new();
+        private long prevStopwatchTimeStamp = 0;
+        
+        public long CurrentTimeStamp { get; private set; }
+
         public ServerMainThread Main => mainThread ?? throw new InvalidOperationException();
 
         public async Task Init()
@@ -28,7 +36,7 @@ namespace DeadCellsMultiplayerX.Server
             await Task.Yield().ConfigureAwait(false);
 
             mainThread = new(this);
-
+            stopwatch.Start();
             outPipe.WriteByte(0x32);
 
             Logger.Information("Waiting host...");
@@ -80,6 +88,16 @@ namespace DeadCellsMultiplayerX.Server
                 var channel = multiplexingStream.AcceptChannel(channelId);
                 guests.Add(new SGuestConnection(this, channel.AsStream()));
             }
+        }
+
+        private void UpdateTimeStamp()
+        {
+            CurrentTimeStamp += stopwatch.ElapsedMilliseconds - prevStopwatchTimeStamp;
+            prevStopwatchTimeStamp = stopwatch.ElapsedMilliseconds;
+        }
+        void IOnFrameUpdate.OnFrameUpdate(double dt)
+        {
+            UpdateTimeStamp();
         }
     }
 }

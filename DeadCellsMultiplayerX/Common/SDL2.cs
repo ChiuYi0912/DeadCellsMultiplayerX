@@ -33,6 +33,8 @@
 #pragma warning disable IDE0079
 #pragma warning disable IDE0090
 #pragma warning disable IDE0017
+#pragma warning disable CS8625
+#pragma warning disable CS8603
 
 #region Using Statements
 using System;

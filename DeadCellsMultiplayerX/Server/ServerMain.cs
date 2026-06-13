@@ -1,4 +1,5 @@
 ﻿using dc;
+using dc.en;
 using dc.h3d.mat;
 using dc.haxe.io;
 using dc.hxd;
@@ -7,6 +8,7 @@ using dc.hxsl;
 using dc.libs.heaps.slib;
 using dc.pr;
 using dc.tool;
+using DeadCellsMultiplayerX.Server.Events;
 using Hashlink;
 using Hashlink.Marshaling;
 using Hashlink.Proxy;
@@ -52,6 +54,8 @@ namespace DeadCellsMultiplayerX.Server
         public Thread? MainThread { get; private set; }
 
         public readonly string savePath = System.IO.Path.GetTempFileName();
+        public readonly Dictionary<object, string> spriteLib2altas = [];
+
         private ServerSession? session;
         /// <summary>
         /// 初始化服务器
@@ -71,6 +75,9 @@ namespace DeadCellsMultiplayerX.Server
             Hook_SpriteLib.getNormalMapFromGroup += Hook_SpriteLib_getNormalMapFromGroup;
             Hook_SpriteLib.getNormalMapFromSprite += Hook_SpriteLib_getNormalMapFromSprite;
 
+            dc.libs.heaps.slib.assets.Hook__Atlas.load += Hook__Atlas_load;
+            Hook_Entity.setColorMap += Hook_Entity_setColorMap;
+            Hook_Hero.initColorMap += Hook_Hero_initColorMap;
 
             //避免影响本地存档
             Hook__Save.fileName += Hook__Save_fileName;
@@ -89,6 +96,30 @@ namespace DeadCellsMultiplayerX.Server
             Hook_TitleScreen.initTitleScreen += Hook_TitleScreen_initTitleScreen;
 
             
+        }
+
+        private void Hook_Hero_initColorMap(Hook_Hero.orig_initColorMap orig, Hero self)
+        {
+            orig(self);
+
+            var inf = self.getSkinInfo();
+
+            EventSystem.BroadcastEvent<IOnEntitySetColorMap, IOnEntitySetColorMap.Data>(new(self, inf.model.ToString(), inf.colorMap.ToString()));
+        }
+
+        private void Hook_Entity_setColorMap(Hook_Entity.orig_setColorMap orig, Entity self, dc.String model, dc.String skin, HSprite sspr)
+        {
+            orig(self, model, skin, sspr);
+
+            EventSystem.BroadcastEvent<IOnEntitySetColorMap, IOnEntitySetColorMap.Data>(new(self, model.ToString(), skin.ToString()));
+        }
+
+        private SpriteLib Hook__Atlas_load(dc.libs.heaps.slib.assets.Hook__Atlas.orig_load orig, dc.String atlasPath, 
+            HaxeProxy.Runtime.HlAction onReload, dc.hl.types.ArrayObj notZeroBaseds, dc.hl.types.ArrayObj properties)
+        {
+            var lib = orig(atlasPath, onReload, notZeroBaseds, properties);
+            spriteLib2altas[lib] = atlasPath.ToString();
+            return lib;
         }
 
         private void Hook_TitleScreen_initTitleScreen(Hook_TitleScreen.orig_initTitleScreen orig, TitleScreen self, 

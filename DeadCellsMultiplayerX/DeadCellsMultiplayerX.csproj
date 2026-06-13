@@ -11,6 +11,7 @@
     <AutoInstallMod Condition="'$(Configuration)' == 'Debug'">true</AutoInstallMod>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platform>x64</Platform>
+    <NoWarn>$(NoWarn);MSB3270</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

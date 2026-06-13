@@ -19,7 +19,7 @@ namespace DeadCellsMultiplayerX.Client.Host
 
         private JsonRpc? rpc;
         public GuestInfo guestInfo = new();
-        public ILogger Logger { get; }
+        public override ILogger Logger { get; }
 
         public GuestConnection(HostClient host, BaseNetworkConnection connection)
         {

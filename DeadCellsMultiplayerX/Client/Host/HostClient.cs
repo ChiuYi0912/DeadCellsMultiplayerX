@@ -89,6 +89,12 @@ namespace DeadCellsMultiplayerX.Client.Host
 
             Logger.Information("Starting game...");
             session.StartGame();
+
+            _ = Task.Delay(-1, session.DisposeToken)
+                .ContinueWith(_ =>
+                {
+                    Dispose();
+                }, TaskContinuationOptions.OnlyOnCanceled);
         }
 
         public async Task Init()

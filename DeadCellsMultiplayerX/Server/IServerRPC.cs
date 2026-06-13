@@ -17,6 +17,7 @@ namespace DeadCellsMultiplayerX.Server
             public int Y { get; set; }
             public int Width { get; set; }
             public int Height { get; set; }
+            public int SubLevelId { get; set; }
         }
         /// <summary>
         /// 设置玩家信息
@@ -55,6 +56,12 @@ namespace DeadCellsMultiplayerX.Server
         /// <param name="guid"></param>
         /// <returns></returns>
         public Task<EntityInfo> RequestEntityInfo(string guid);
+
+        /// <summary>
+        /// 获取服务器时间
+        /// </summary>
+        /// <returns></returns>
+        public Task<long> GetTimeStamp();
 
         public Task<bool> CheckVersion(string version);
     }
