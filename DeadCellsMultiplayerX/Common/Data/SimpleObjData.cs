@@ -1,0 +1,127 @@
+﻿using dc;
+using System;
+using System.Collections.Generic;
+using System.Reflection;
+using System.Text;
+
+namespace DeadCellsMultiplayerX.Common.Data
+{
+    public class SimpleObjData
+    {
+        private enum SFieldKind
+        {
+            Unknown,
+            Int,
+            Bool,
+            Double
+        }
+        private record class SFieldInfo(string Name, PropertyInfo Field, SFieldKind Kind);
+
+        private static readonly Dictionary<System.Type, List<SFieldInfo>> types = [];
+
+        public Dictionary<string, int> IntValues { get; set; } = [];
+        public Dictionary<string, bool> BoolValues { get; set; } = [];
+        public Dictionary<string, double> DoubleValues { get; set; } = [];
+
+        public void Serialize(object? obj, System.Type? type)
+        {
+            
+            IntValues.Clear();
+            DoubleValues.Clear();
+            BoolValues.Clear(); 
+
+            if (obj == null)
+            {
+                return;
+            }
+
+            var fields = GetFields(type ?? obj.GetType());
+            foreach (var v in fields)
+            {
+                var val = v.Field.GetValue(obj);
+
+                if (val == null)
+                {
+                    continue;
+                }
+
+                if (v.Kind == SFieldKind.Int)
+                {
+                    IntValues[v.Name] = (int)val;
+                }
+                else if (v.Kind == SFieldKind.Bool)
+                {
+                    BoolValues[v.Name] = (bool)val;
+                }
+                else if (v.Kind == SFieldKind.Double)
+                {
+                    DoubleValues[v.Name] = (double)val;
+                }
+            }
+        }
+        public void Deserialize(object? obj, System.Type? type )
+        {
+            if(obj == null)
+            {
+                return;
+            }
+            var fields = GetFields(type ?? obj.GetType());
+            foreach (var v in fields)
+            {
+                object val;
+
+                if (v.Kind == SFieldKind.Int)
+                {
+                    val = IntValues[v.Name];
+                }
+                else if (v.Kind == SFieldKind.Bool)
+                {
+                    val = BoolValues[v.Name];
+                }
+                else if (v.Kind == SFieldKind.Double)
+                {
+                    val = DoubleValues[v.Name];
+                }
+                else
+                {
+                    continue;
+                }
+
+                v.Field.SetValue(obj, val);
+            }
+        }
+
+        private static List<SFieldInfo> GetFields(System.Type type)
+        {
+            if(!types.TryGetValue(type, out var fields))
+            {
+                fields = [];
+                var fs = type.GetProperties(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public);
+                foreach (var v in fs)
+                {
+                    SFieldKind kind;
+                    if (v.PropertyType == typeof(int))
+                    {
+                        kind = SFieldKind.Int;
+                    }
+                    else if (v.PropertyType == typeof(bool))
+                    {
+                        kind = SFieldKind.Bool;
+                    }
+                    else if (v.PropertyType == typeof(double))
+                    {
+                        kind = SFieldKind.Double;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+
+                    fields.Add(new(v.Name, v, kind));
+                }
+                types[type] = fields;
+            }
+            return fields;
+        }
+    }
+}

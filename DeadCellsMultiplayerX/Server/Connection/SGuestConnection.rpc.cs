@@ -1,4 +1,5 @@
 ﻿using dc;
+using dc.libs.heaps.slib;
 using DeadCellsMultiplayerX.Client;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
@@ -114,7 +115,8 @@ namespace DeadCellsMultiplayerX.Server
 
                         inf.TypeName = v.GetType().FullName;
 
-                        EntitySerializer.Serialize(inf, v);
+                        inf.EntityData.Serialize(v, typeof(Entity));
+                        inf.SpritePivotData.Serialize(v.spr?.pivot, typeof(SpritePivot));
 
                         var spr = v.spr;
                         if (spr != null)

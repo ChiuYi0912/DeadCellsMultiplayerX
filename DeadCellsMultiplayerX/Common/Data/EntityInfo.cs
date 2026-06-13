@@ -13,13 +13,12 @@ namespace DeadCellsMultiplayerX.Common.Data
         public string? AtlasName { get; set; }
         public string? GroupName { get; set; }
         public int Frame { get; set; }
-        public Dictionary<string, int> IntValues { get; set; } = [];
-        public Dictionary<string, bool> BoolValues { get; set; } = [];
-        public Dictionary<string, double> DoubleValues { get; set; } = [];
-
         public long TimeStamp { get; set; } = 0;
 
         public string? ColorMapModel { get; set; }
         public string? ColorMapSkin { get; set; }
+
+        public SimpleObjData EntityData { get; set; } = new();
+        public SimpleObjData SpritePivotData {  get; set; } = new();
     }
 }

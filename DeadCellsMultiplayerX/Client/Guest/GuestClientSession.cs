@@ -118,8 +118,10 @@ namespace DeadCellsMultiplayerX.Client.Guest
             }
             Logger.Error(e.Exception, "Abort connection: {reason}: {desc}", e.Reason, e.Description);
 
-            ModCore.Modules.Game.SynchronizationContext.Post(_ =>
+            ModCore.Modules.Game.SynchronizationContext.Post(static _ =>
             {
+                ClientMain.Instance.CleanupClient();
+
                 Boot.Class.ME.returnToMainMenu();
             }, null);
 
@@ -131,8 +133,8 @@ namespace DeadCellsMultiplayerX.Client.Guest
             base.MyDispose();
 
             serverStream?.Dispose();
-
             worldDirector?.Dispose();
+            rpc?.Dispose();
 
             Hook__Save.save -= Hook__Save_save;
         }

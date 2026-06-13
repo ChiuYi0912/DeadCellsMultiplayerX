@@ -38,6 +38,10 @@ namespace DeadCellsMultiplayerX.Client
             CurrentHostClient?.Dispose();
             CurrentHostClient = null;
             CurrentGuestClient = null;
+
+            GC.Collect(2, GCCollectionMode.Forced);
+
+            Task.Delay(200).ContinueWith(_ => GC.Collect(2, GCCollectionMode.Forced));
         }
 
         /// <summary>

@@ -74,10 +74,12 @@ namespace DeadCellsMultiplayerX.Client.Guest.World
             var spr = ghost.spr;
             Debug.Assert(spr != null);
 
-            if (lib != spr.lib || currentInfo.GroupName != spr.groupName.ToString())
+            currentInfo.SpritePivotData.Deserialize(spr.pivot, typeof(SpritePivot));
+
+            if (lib != spr.lib || prevInfo == null || prevInfo.GroupName != currentInfo.GroupName)
             {
                 spr.set(lib, groupName, Ref<int>.In(currentInfo.Frame), default);
-                spr.get_anim().play(groupName, 10, null);
+                spr.get_anim().play(groupName, int.MaxValue, null);
             }
 
             var delt = (director.Session.CurrentTimeStamp - currentInfo.TimeStamp) / 1000f;
@@ -116,7 +118,6 @@ namespace DeadCellsMultiplayerX.Client.Guest.World
 
         public void Update()
         {
-            //UpdatePos();
         }
 
         public void UpdateInfo(EntityInfo info)
@@ -124,7 +125,13 @@ namespace DeadCellsMultiplayerX.Client.Guest.World
             prevInfo = currentInfo;
             currentInfo = info;
 
-            EntitySerializer.Deserialize(info, ghost);
+            info.EntityData.Deserialize(ghost, typeof(Entity));
+
+            ghost.setPosCase(ghost.cx, ghost.cy, ghost.xr, ghost.yr);
+            ghost.set_targetable(false);
+            ghost.circularRepel = 0;
+            ghost.hasRepelling = false;
+            ghost.detectsWater = false;
 
             Update();
             UpdateAnim();

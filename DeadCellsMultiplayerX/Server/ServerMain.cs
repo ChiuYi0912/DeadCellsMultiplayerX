@@ -183,7 +183,7 @@ namespace DeadCellsMultiplayerX.Server
 
             if(c == Image.Class)
             {
-                return img4096x4096 ??= new Image(self.load("atlas/beheaded0.png".AsHaxeString()).entry);
+                //return img4096x4096 ??= new Image(self.load("atlas/beheaded0.png".AsHaxeString()).entry);
             }
             else if(c == Sound.Class)
             {
