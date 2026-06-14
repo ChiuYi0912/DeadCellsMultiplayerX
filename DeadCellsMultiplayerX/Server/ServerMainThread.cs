@@ -4,9 +4,11 @@ using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Server.Events;
 using ModCore.Events;
 using ModCore.Storage;
+using ModCore.Utilities;
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 namespace DeadCellsMultiplayerX.Server
@@ -21,7 +23,7 @@ namespace DeadCellsMultiplayerX.Server
 
         private static void CheckMainThread()
         {
-            if(Thread.CurrentThread != ServerMain.Instance.MainThread)
+            if (Thread.CurrentThread != ServerMain.Instance.MainThread)
             {
                 throw new InvalidOperationException();
             }
@@ -47,24 +49,42 @@ namespace DeadCellsMultiplayerX.Server
 
             Main.Class.ME.launchGame(new LaunchMode.NewGame(false, false), null, null);
 
-            while(true)
+            while (true)
             {
                 await Task.Delay(1);
-                if(Game.Class.ME?.hero != null)
+                DisposeToken.ThrowIfCancellationRequested();
+                CheckMainThread();
+                var g = Game.Class.ME;
+
+                if (g == null ||
+                    g.curLevel == null ||
+                    g.subLevels == null ||
+                    g.hero == null ||
+                    Main.Class.ME.isLoading)
                 {
-                    break;
+                    continue;
                 }
+                break;
             }
 
-            EnterNewLevel();
+            await EnterNewLevel();
         }
 
-        public void EnterNewLevel()
+        public async Task EnterNewLevel()
         {
             Logger.Information("Entering new level...");
 
             Logger.Information("Saving game...");
+
             Main.Class.ME.writeSave();
+
+            while (Main.Class.ME.waitToSave)
+            {
+                await Task.Delay(1);
+                Main.Class.ME.writeSave();
+            }
+
+            Logger.Information("Saved game");
 
             savePath = ServerMain.Instance.savePath;
             EventSystem.BroadcastEvent<IOnServerEnterNewLevel>();

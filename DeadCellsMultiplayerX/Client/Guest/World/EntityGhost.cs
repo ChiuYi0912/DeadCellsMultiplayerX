@@ -4,6 +4,7 @@ using dc.pr;
 using DeadCellsMultiplayerX.Client.Guest.Ghost;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
+using Hashlink.Virtuals;
 using HaxeProxy.Runtime;
 using ModCore.Utilities;
 using System;
@@ -75,6 +76,18 @@ namespace DeadCellsMultiplayerX.Client.Guest.World
             Debug.Assert(spr != null);
 
             currentInfo.SpritePivotData.Deserialize(spr.pivot, typeof(SpritePivot));
+
+            if(currentInfo.GlowData != null)
+            {
+                foreach((var idx, var gdd) in currentInfo.GlowData)
+                {
+                    var gd = new virtual_animationIntensity_animationScale_animationSpeed_animationTextureMask_inner_key_outer_power_();
+                    gdd.Deserialize(gd, null);
+                    ghost.setGlowData(idx, gd, null);
+                }
+            }
+
+            ghost.setDepth(ghost.curLayer);
 
             if (lib != spr.lib || prevInfo == null || prevInfo.GroupName != currentInfo.GroupName)
             {

@@ -1,6 +1,7 @@
 ﻿using dc;
 using dc.en;
 using dc.en.inter;
+using dc.pr;
 using dc.tool;
 using DeadCellsMultiplayerX.Client.Guest.Ghost;
 using DeadCellsMultiplayerX.Client.Host;
@@ -11,6 +12,7 @@ using ModCore.Events.Interfaces.Game;
 using ModCore.Events.Interfaces.Game.Hero;
 using ModCore.Modules;
 using ModCore.Utilities;
+using PolyType.Abstractions;
 using StreamJsonRpc;
 using System;
 using System.Collections.Generic;
@@ -47,6 +49,8 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
         public override async Task Init()
         {
+            InitHooks();
+
             stopwatch.Start();
 
             rpc = serverStream.CreateJsonRpc();
@@ -89,15 +93,34 @@ namespace DeadCellsMultiplayerX.Client.Guest
                 await server.UploadSavedata(await System.IO.File.ReadAllBytesAsync(fp));
             }
 
+        }
+
+        private void InitHooks()
+        {
+
             Hook__Save.save += Hook__Save_save;
-            dc.tool.Hook__File.getBytes += Hook__File_getBytes;
+            Hook__File.getBytes += Hook__File_getBytes;
+            Hook__File.getSteamCloudStatus += Hook__File_getSteamCloudStatus;
+            Hook__File.saveSteamCloudStatus += Hook__File_saveSteamCloudStatus;
+        }
+
+        private void Hook__File_saveSteamCloudStatus(Hook__File.orig_saveSteamCloudStatus orig)
+        {
+            
+        }
+
+        private bool? Hook__File_getSteamCloudStatus(Hook__File.orig_getSteamCloudStatus orig)
+        {
+            return null;
         }
 
         private dc.haxe.io.Bytes Hook__File_getBytes(Hook__File.orig_getBytes orig, dc.String file)
         {
             var fn = file.ToString();
-            if(fn.StartsWith("user_") && saveData != null)
+            if(fn.StartsWith("user"))
             {
+                Debug.Assert(saveData != null);
+
                 var bytes = dc.haxe.io.Bytes.Class.alloc(saveData.Length);
                 saveData.CopyTo(bytes.AsSpan());
                 return bytes;
@@ -137,6 +160,9 @@ namespace DeadCellsMultiplayerX.Client.Guest
             rpc?.Dispose();
 
             Hook__Save.save -= Hook__Save_save;
+            Hook__File.getBytes -= Hook__File_getBytes;
+            Hook__File.getSteamCloudStatus -= Hook__File_getSteamCloudStatus;
+            Hook__File.saveSteamCloudStatus -= Hook__File_saveSteamCloudStatus;
         }
 
         /// <summary>
@@ -149,13 +175,23 @@ namespace DeadCellsMultiplayerX.Client.Guest
             this.saveData = saveData;
 
             Logger.Information("Entering new level...");
+
+            Main.Class.ME.options.disableLoreRooms = true;
+
             Main.Class.ME.cleanUser();
             Main.Class.ME.launchGame(new LaunchMode.LoadSave(), null, null);
 
             while (true)
             {
                 await Task.Delay(1);
-                if (dc.pr.Game.Class.ME?.curLevel != null)
+                DisposeToken.ThrowIfCancellationRequested();
+
+                var g = dc.pr.Game.Class.ME;
+                if(g?.curLevel == null || g.subLevels == null)
+                {
+                    continue;
+                }
+                if(!Main.Class.ME.isLoading)
                 {
                     break;
                 }
@@ -164,20 +200,22 @@ namespace DeadCellsMultiplayerX.Client.Guest
             Logger.Information("Clearing entities...");
 
             var gm = dc.pr.Game.Class.ME;
-            var level = gm.curLevel;
 
-            List<Entity> entities = [];
-            foreach(Entity v in level.entities)
+            foreach (Level level in gm.subLevels)
             {
-                if(v is Hero)
+                List<Entity> entities = [];
+                foreach (Entity v in level.entities)
                 {
-                    continue;
+                    if (v is Hero || v is Interactive)
+                    {
+                        continue;
+                    }
+                    entities.Add(v);
                 }
-                entities.Add(v);
-            }
-            foreach (var v in entities)
-            {
-                v.destroy();
+                foreach (var v in entities)
+                {
+                    v.destroy();
+                }
             }
 
             worldDirector?.Dispose();

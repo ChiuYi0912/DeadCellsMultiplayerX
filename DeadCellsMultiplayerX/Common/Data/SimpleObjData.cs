@@ -59,6 +59,16 @@ namespace DeadCellsMultiplayerX.Common.Data
                 }
             }
         }
+
+        private static T? GetValue<T>(Dictionary<string, T> dict, string name) where T : struct
+        {
+            if(dict.TryGetValue(name, out var val))
+            {
+                return val;
+            }
+            return default;
+        }
+
         public void Deserialize(object? obj, System.Type? type )
         {
             if(obj == null)
@@ -68,19 +78,19 @@ namespace DeadCellsMultiplayerX.Common.Data
             var fields = GetFields(type ?? obj.GetType());
             foreach (var v in fields)
             {
-                object val;
+                object? val;
 
                 if (v.Kind == SFieldKind.Int)
                 {
-                    val = IntValues[v.Name];
+                    val = GetValue(IntValues, v.Name);
                 }
                 else if (v.Kind == SFieldKind.Bool)
                 {
-                    val = BoolValues[v.Name];
+                    val = GetValue(BoolValues, v.Name);
                 }
                 else if (v.Kind == SFieldKind.Double)
                 {
-                    val = DoubleValues[v.Name];
+                    val = GetValue(DoubleValues, v.Name);
                 }
                 else
                 {
@@ -100,15 +110,15 @@ namespace DeadCellsMultiplayerX.Common.Data
                 foreach (var v in fs)
                 {
                     SFieldKind kind;
-                    if (v.PropertyType == typeof(int))
+                    if (v.PropertyType == typeof(int) || v.PropertyType == typeof(int?))
                     {
                         kind = SFieldKind.Int;
                     }
-                    else if (v.PropertyType == typeof(bool))
+                    else if (v.PropertyType == typeof(bool) || v.PropertyType == typeof(bool?))
                     {
                         kind = SFieldKind.Bool;
                     }
-                    else if (v.PropertyType == typeof(double))
+                    else if (v.PropertyType == typeof(double) || v.PropertyType == typeof(double?))
                     {
                         kind = SFieldKind.Double;
                     }
