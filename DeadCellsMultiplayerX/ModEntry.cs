@@ -1,7 +1,6 @@
 ﻿using dc;
 using dc.pr;
 using DeadCellsMultiplayerX.Client;
-using DeadCellsMultiplayerX.Client.Lobby;
 using DeadCellsMultiplayerX.Utils;
 using ModCore.Mods;
 using System;
@@ -27,9 +26,6 @@ namespace DeadCellsMultiplayerX
             Environment.SetEnvironmentVariable("DCCM_MULTIPLAYER_NO_CLIENT", "1");
 
             new ClientMain().Init();
-
-            // 标题画面加联机入口
-            TitleScreenHooks.Init();
 
             //可以捕获到奇怪的报错
             #if DEBUG
