@@ -1,9 +1,12 @@
-﻿using dc.pr;
+﻿using dc;
+using dc.pr;
 using DeadCellsMultiplayerX.Client;
+using DeadCellsMultiplayerX.Client.Lobby;
 using DeadCellsMultiplayerX.Utils;
 using ModCore.Mods;
 using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using System.Text;
 
 namespace DeadCellsMultiplayerX
@@ -25,16 +28,28 @@ namespace DeadCellsMultiplayerX
 
             new ClientMain().Init();
 
-            //Test
-            Hook_TitleScreen.initTitleScreen += Hook_TitleScreen_initTitleScreen;
+            // 标题画面加联机入口
+            TitleScreenHooks.Init();
+
+            //可以捕获到奇怪的报错
+            #if DEBUG
+                Hook_Boot.mainLoop+= Hook_Boot_mainLoop;
+            #endif
         }
 
-        private void Hook_TitleScreen_initTitleScreen(Hook_TitleScreen.orig_initTitleScreen orig, TitleScreen self,
-            dc.libs.heaps.slib.SpriteLib titleLib, HaxeProxy.Runtime.Ref<int> bgType)
+        private void Hook_Boot_mainLoop(Hook_Boot.orig_mainLoop orig, Boot self)
         {
-            orig(self, titleLib, bgType);
-
-            Test.Start();
+            try
+            {
+                orig(self);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("{ex}", ex);
+                //System.Diagnostics.Debugger.Break();
+                ExceptionDispatchInfo.Capture(ex).Throw();
+                throw;
+            }
         }
     }
 }
