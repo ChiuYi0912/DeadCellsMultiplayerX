@@ -7,7 +7,7 @@ namespace DeadCellsMultiplayerX.Common.Data
 {
     public class MenuItemData
     {
-        public MenuItemPage PageId { get ; set; }
+        public MenuItemAllPage PageId { get ; set; }
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public int Color { get; set; } = 0xFFFFFF;
@@ -15,10 +15,13 @@ namespace DeadCellsMultiplayerX.Common.Data
         public bool Enabled;
     }
 
-    public enum MenuItemPage
+    public enum MenuItemAllPage
     {
+        GameMian,
         OnlineMian,
+        SteamP2P,
         CretaeROOM,
-        JoinROOM
+        JoinROOM,
+        Settings
     }
 }

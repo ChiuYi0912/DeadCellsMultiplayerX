@@ -20,51 +20,57 @@ namespace DeadCellsMultiplayerX.Client
     {
         private readonly ClientMain client;
         private readonly ILogger logger;
-        //private readonly LobbyInfo lobby;
-
 
         private Flow mainFlow=null!;
         private dc.ui.Text titleText=null!;
+
+        private int get_width()=> dc.hxd.Window.Class.getInstance().get_width();
+        private int get_height()=> dc.hxd.Window.Class.getInstance().get_height();
+        private double pixelScale{get=> get_pixelScale.Invoke();}
 
         public LobbyMenu(ClientMain client) : base(null)
         {
             this.client = client;
             this.logger = Log.ForContext(GetType());
-            
-            createRootInLayers(Main.Class.ME.root, Const.Class.ROOT_DP_MAIN);
+        }
 
-            CreateUI();
+        public void AfterTitleScreen()
+        {
+            createRootInLayers(Main.Class.ME.root, Const.Class.ROOT_DP_MAIN);
+            mainFlow = new(root);
+            
             onResize();
+
+            mainFlow.debugGraphics = new Graphics(mainFlow);
+            mainFlow.debug = true;
+            mainFlow.getProperties(mainFlow.debugGraphics).isAbsolute=true;
         }
 
         private void CreateUI()
         {
-            mainFlow = new(root);
-            titleText =Assets.Class.makeText("title".AsHaxeString(),null,null, mainFlow);
+            titleText?.remove();
+            titleText =Assets.Class.makeText("Hello Word".AsHaxeString(),null, null, mainFlow);
         }
 
         public override void onResize()
         {
             base.onResize();
             mainFlow.reflow();
-            var w = dc.hxd.Window.Class.getInstance().get_width();
-            var h = dc.hxd.Window.Class.getInstance().get_height();
 
-            root.x = (w - mainFlow.get_outerWidth()) / 2;
+            var w = get_width();
+            var h = get_height();
+
+            mainFlow.set_minWidth(w / 2);
+            mainFlow.set_minHeight(h / 2);
+
+            root.x = w - mainFlow.get_outerWidth();
             root.y = (h - mainFlow.get_outerHeight()) / 2;
-
             root.posChanged = true;
         }
 
         public override void onDispose()
         {
             base.onDispose();
-        }
-
-
-        public void Refresh()
-        {
-            //lobby = guest.LobbyInfo!;
         }
 
 
@@ -92,7 +98,7 @@ namespace DeadCellsMultiplayerX.Client
 
             BuildMenuChild(T("TEST_Menu"), () =>
             {
-
+                CreateUI();
             });
 #endif
 
