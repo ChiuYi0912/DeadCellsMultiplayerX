@@ -43,10 +43,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Client\UI\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Update="msquic.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

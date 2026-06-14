@@ -73,7 +73,13 @@ namespace DeadCellsMultiplayerX.Client.Guest.Ghost
 
         private async Task UpdateWorld()
         {
-            var hero = session.Game.hero;
+            var hero = session.Game?.hero;
+
+            if(hero == null)
+            {
+                return;
+            }
+
             var lvl = hero._level;
 
             if(lvl == null)

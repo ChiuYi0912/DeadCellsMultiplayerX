@@ -9,6 +9,7 @@ using HaxeProxy.Runtime;
 using ModCore;
 using ModCore.Mods;
 using ModCore.Utilities;
+using DeadCellsMultiplayerX.Client.UI;
 
 namespace DeadCellsMultiplayerX.Client
 {

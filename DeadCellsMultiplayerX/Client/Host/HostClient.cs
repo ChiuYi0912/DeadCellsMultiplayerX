@@ -1,4 +1,5 @@
 ﻿using dc.sys.net;
+using DeadCellsMultiplayerX.Client.Event;
 using DeadCellsMultiplayerX.Client.Networks;
 using DeadCellsMultiplayerX.Server;
 using DeadCellsMultiplayerX.Utils;
@@ -15,7 +16,8 @@ using System.Text;
 
 namespace DeadCellsMultiplayerX.Client.Host
 {
-    internal class HostClient(BaseNetworkListener listener, CancellationToken cancellationToken) : ClientBase
+    internal class HostClient(BaseNetworkListener listener, CancellationToken cancellationToken) : ClientBase,
+        IOnGuestQuit
     {
         private readonly List<GuestConnection> guests = [];
 
@@ -126,6 +128,7 @@ namespace DeadCellsMultiplayerX.Client.Host
                     !LobbyInfo.Guests.ContainsKey(LobbyInfo.Owner))
                 {
                     LobbyInfo.Owner = gConnect.guestInfo.Guid;
+                    gConnect.guestInfo.IsHost = true;
                 }
             }
         }
@@ -144,6 +147,15 @@ namespace DeadCellsMultiplayerX.Client.Host
             }
 
             guests.Clear();
+        }
+
+        void IOnGuestQuit.OnGuestQuit(GuestInfo guest)
+        {
+            if(guest.IsHost)
+            {
+                // 房主退出
+                Dispose();
+            }
         }
     }
 }

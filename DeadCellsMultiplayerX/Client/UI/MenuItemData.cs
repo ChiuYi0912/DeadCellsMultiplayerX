@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace DeadCellsMultiplayerX.Common.Data
+namespace DeadCellsMultiplayerX.Client.UI
 {
     public class MenuItemData
     {

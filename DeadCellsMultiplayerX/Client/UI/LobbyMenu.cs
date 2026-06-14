@@ -14,7 +14,7 @@ using ModCore.Modules;
 using ModCore.Utilities;
 using Serilog;
 
-namespace DeadCellsMultiplayerX.Client
+namespace DeadCellsMultiplayerX.Client.UI
 {
     internal class LobbyMenu : dc.ui.Process
     {
@@ -68,15 +68,6 @@ namespace DeadCellsMultiplayerX.Client
         }
 
 
-        private void ToggleReady(Event e)
-        {
-            
-        }
-
-        private void  StartGame(Event e)
-        {
-            
-        }
 
         public void OnlineMenu(TitleScreen screen)
         {

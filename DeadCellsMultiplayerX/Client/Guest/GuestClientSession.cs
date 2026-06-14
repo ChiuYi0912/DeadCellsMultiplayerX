@@ -97,11 +97,21 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
         private void InitHooks()
         {
-
             Hook__Save.save += Hook__Save_save;
             Hook__File.getBytes += Hook__File_getBytes;
             Hook__File.getSteamCloudStatus += Hook__File_getSteamCloudStatus;
             Hook__File.saveSteamCloudStatus += Hook__File_saveSteamCloudStatus;
+            Hook_Game.onDispose += Hook_Game_onDispose;
+        }
+
+        private void Hook_Game_onDispose(Hook_Game.orig_onDispose orig, dc.pr.Game self)
+        {
+            orig(self);
+
+            Logger.Information("Quiting...");
+
+            client.Quit();
+            Dispose();
         }
 
         private void Hook__File_saveSteamCloudStatus(Hook__File.orig_saveSteamCloudStatus orig)
