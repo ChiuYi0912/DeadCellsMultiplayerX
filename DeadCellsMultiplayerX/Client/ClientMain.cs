@@ -1,8 +1,11 @@
 ﻿using dc.shader;
+using dc.pr;
 using DeadCellsMultiplayerX.Client.Guest;
 using DeadCellsMultiplayerX.Client.Host;
 using DeadCellsMultiplayerX.Client.Networks.Quic;
 using DeadCellsMultiplayerX.Server;
+using Hashlink.Virtuals;
+using HaxeProxy.Runtime;
 using ModCore;
 using ModCore.Mods;
 using ModCore.Utilities;
@@ -19,13 +22,20 @@ namespace DeadCellsMultiplayerX.Client
         /// <summary>
         /// 当前的 Host Client 实例
         /// </summary>
-
         public HostClient? CurrentHostClient { get; internal set;  }
+
+        /// <summary>
+        /// 连接大厅
+        /// </summary>
+        public LobbyMenu? lobby {get;internal set;}
 
         //初始化客户端
         public void Init()
         {
             Hook_GlowKey.applyGlowData += Hook_GlowKey_applyGlowData;
+
+            Hook_TitleScreen.mainMenu += Hook_TitleScreen_mainMenu;
+            Hook__TitleScreen.__constructor__ += Hook__TitleScreen__constructor__;
         }
 
         private void Hook_GlowKey_applyGlowData(Hook_GlowKey.orig_applyGlowData orig, GlowKey self, 
@@ -99,5 +109,34 @@ namespace DeadCellsMultiplayerX.Client
             CurrentGuestClient = new GuestClient(connect);
             await CurrentGuestClient.Init(playerName);
         }
+
+        #region Menu
+
+        private void Hook__TitleScreen__constructor__(Hook__TitleScreen.orig___constructor__ orig, TitleScreen arg1, bool? playMusic)
+        {
+            lobby = new(this);
+            orig(arg1, playMusic);
+        }
+
+        private void Hook_TitleScreen_mainMenu(
+            Hook_TitleScreen.orig_mainMenu orig, TitleScreen self)
+        {
+            orig(self);
+
+            int color = (255 << 16) | (215 << 8) | 0;
+            lobby!.BuildMenuChild("Online", () => lobby.OnlineMenu(self), color: color);
+
+            var wrapper = self.menuItemsWrapper;
+            var menu = wrapper.children.getDyn(wrapper.children.length - 1);
+            wrapper.removeChild(menu);
+            wrapper.addChildAt(menu, 1);
+
+            var item = self.menuItems.pop();
+            self.menuItems.insert(1, item);
+
+            self.fControlLabel.reflow();
+            self.select(0, default);
+        }
+        #endregion
     }
 }
