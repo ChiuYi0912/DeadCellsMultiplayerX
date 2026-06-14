@@ -7,6 +7,7 @@ using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Server.Events;
 using DeadCellsMultiplayerX.Utils;
+using Hashlink.Virtuals;
 using Microsoft.VisualStudio.Threading;
 using ModCore.Events;
 using ModCore.Events.Interfaces.Game;
@@ -25,7 +26,8 @@ namespace DeadCellsMultiplayerX.Server
     internal partial class SGuestConnection :
         DisposableEventReceiver,
         IOnServerEnterNewLevel,
-        IOnEntitySetColorMap
+        IOnEntitySetColorMap,
+        IOnEntitySetGlowData
     {
         private class EntityInfo2
         {
@@ -111,6 +113,16 @@ namespace DeadCellsMultiplayerX.Server
             info.ColorMapModel = data.Model;
 
             Logger.Information("Set colormap: {guid} {model} {skin}", info.GUID, info.ColorMapModel, info.ColorMapSkin);
+        }
+
+        void IOnEntitySetGlowData.OnEntitySetGlowData(IOnEntitySetGlowData.Data data)
+        {
+            var info = GetEntityInfo(data.Entity).info;
+
+            var gd = new virtual_animationIntensity_animationScale_animationSpeed_animationTextureMask_inner_key_outer_power_();
+            var gdd = new SimpleObjData();
+            gdd.Serialize(gd, null);
+            info.GlowData[data.Index] = gdd;
         }
     }
 }

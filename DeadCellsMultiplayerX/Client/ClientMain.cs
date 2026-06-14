@@ -1,4 +1,5 @@
-﻿using DeadCellsMultiplayerX.Client.Guest;
+﻿using dc.shader;
+using DeadCellsMultiplayerX.Client.Guest;
 using DeadCellsMultiplayerX.Client.Host;
 using DeadCellsMultiplayerX.Client.Networks.Quic;
 using DeadCellsMultiplayerX.Server;
@@ -24,7 +25,19 @@ namespace DeadCellsMultiplayerX.Client
         //初始化客户端
         public void Init()
         {
-            
+            Hook_GlowKey.applyGlowData += Hook_GlowKey_applyGlowData;
+        }
+
+        private void Hook_GlowKey_applyGlowData(Hook_GlowKey.orig_applyGlowData orig, GlowKey self, 
+            int i, Hashlink.Virtuals.virtual_animationIntensity_animationScale_animationSpeed_animationTextureMask_inner_key_outer_power_ glowData)
+        {
+            if (self.colorsCount__ <= i)
+            {
+                self.colorsCount__ = i + 1;
+                self.constModified = true;
+            }
+
+            orig(self, i, glowData);
         }
 
         /// <summary>

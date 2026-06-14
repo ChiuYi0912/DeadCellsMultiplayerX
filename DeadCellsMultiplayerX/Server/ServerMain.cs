@@ -92,10 +92,48 @@ namespace DeadCellsMultiplayerX.Server
 
             options.save();
 
-
             Hook_TitleScreen.initTitleScreen += Hook_TitleScreen_initTitleScreen;
 
-            
+            dc.tool.Hook__File.getSteamCloudStatus += Hook__File_getSteamCloudStatus;
+            dc.tool.Hook__File.saveSteamCloudStatus += Hook__File_saveSteamCloudStatus;
+
+            Hook_Entity._isOnScreen += Hook_Entity__isOnScreen;
+            Hook_Entity.setGlowColor += Hook_Entity_setGlowColor;
+            Hook_Entity.setGlowData += Hook_Entity_setGlowData;
+        }
+
+        private void Hook__File_saveSteamCloudStatus(dc.tool.Hook__File.orig_saveSteamCloudStatus orig)
+        {
+           
+        }
+
+        private bool? Hook__File_getSteamCloudStatus(dc.tool.Hook__File.orig_getSteamCloudStatus orig)
+        {
+            return null;
+        }
+
+        private void Hook_Entity_setGlowData(Hook_Entity.orig_setGlowData orig, Entity self, int index, 
+            Hashlink.Virtuals.virtual_animationIntensity_animationScale_animationSpeed_animationTextureMask_inner_key_outer_power_ glowData, 
+            HSprite sprite)
+        {
+            EventSystem.BroadcastEvent<IOnEntitySetGlowData, IOnEntitySetGlowData.Data>(new(self, index, glowData));
+
+            orig(self, index, glowData, sprite);
+        }
+
+        private void Hook_Entity_setGlowColor(Hook_Entity.orig_setGlowColor orig, Entity self, int inner, int? outer, double? power, HSprite sprite)
+        {
+            self.setGlowData(0, new()
+            {
+                inner = inner,
+                outer = outer,
+                power = power
+            }, sprite);
+        }
+
+        private bool Hook_Entity__isOnScreen(Hook_Entity.orig__isOnScreen orig, Entity self)
+        {
+            return true;
         }
 
         private void Hook_Hero_initColorMap(Hook_Hero.orig_initColorMap orig, Hero self)

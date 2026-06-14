@@ -1,4 +1,5 @@
 ﻿using dc;
+using dc.en;
 using dc.libs.heaps.slib;
 using DeadCellsMultiplayerX.Client;
 using DeadCellsMultiplayerX.Common;
@@ -109,9 +110,16 @@ namespace DeadCellsMultiplayerX.Server
 
                 foreach (Entity v in lvl.entities)
                 {
+                    if(v is Interactive)
+                    {
+                        continue;
+                    }
+
                     if (v.cx >= rx && v.cx <= rxt && v.cy >= ry && v.cy <= ryt && v.visible)
                     {
                         EntityInfo inf = GetEntityInfo(v).info;
+
+                        v.isOnScreen = true;
 
                         inf.TypeName = v.GetType().FullName;
 
