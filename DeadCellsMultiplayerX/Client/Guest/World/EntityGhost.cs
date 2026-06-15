@@ -15,7 +15,7 @@ using System.Text;
 
 namespace DeadCellsMultiplayerX.Client.Guest.World
 {
-    internal class EntityGhost : IDisposable
+    internal class EntityGhost : IDisposable, IWorldGhost
     {
         public Entity ghost;
 
@@ -34,6 +34,8 @@ namespace DeadCellsMultiplayerX.Client.Guest.World
         private readonly WorldDirector director;
         private readonly string guid;
 
+        private bool setColorMapSuccess = false;
+
         public EntityGhost(WorldDirector director, Level lvl, string guid)
         {
             this.director = director;
@@ -48,7 +50,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.World
             ghost.dispose();
         }
 
-        public void SetVisble(bool visible)
+        public void SetVisible(bool visible)
         {
             ghost.visible = visible;
         }
@@ -56,27 +58,11 @@ namespace DeadCellsMultiplayerX.Client.Guest.World
         private void UpdateAnim()
         {
 
-            if(currentInfo == null)
+            if(currentInfo == null ||
+                ghost.spr == null)
             {
                 return;
             }
-            var atlas = currentInfo.AtlasName;
-            if(atlas == null)
-            {
-                return;
-            }
-            var lib = director.GetSpriteLib(atlas);
-            var groupName = currentInfo.GroupName?.AsHaxeString();
-            if (ghost.spr == null)
-            {
-                ghost.initSprite(lib, groupName, null, null, null, null, null, null);
-            }
-
-            var spr = ghost.spr;
-            Debug.Assert(spr != null);
-
-            currentInfo.SpritePivotData.Deserialize(spr.pivot, typeof(SpritePivot));
-
             if(currentInfo.GlowData != null)
             {
                 foreach((var idx, var gdd) in currentInfo.GlowData)
@@ -88,34 +74,20 @@ namespace DeadCellsMultiplayerX.Client.Guest.World
             }
 
             ghost.setDepth(ghost.curLayer);
-
-            if (lib != spr.lib || prevInfo == null || prevInfo.GroupName != currentInfo.GroupName)
-            {
-                spr.set(lib, groupName, Ref<int>.In(currentInfo.Frame), default);
-                spr.get_anim().play(groupName, int.MaxValue, null);
-            }
-
-            var delt = (director.Session.CurrentTimeStamp - currentInfo.TimeStamp) / 1000f;
-            if(delt < 0)
-            {
-                delt = 0;
-            }
-
-            var anim = spr.get_anim();
-            anim.setFrame(currentInfo.Frame);
-            anim._update(delt);
         }
 
         private void UpdateColorMap()
         {
-            if(currentInfo == null)
+            if(currentInfo == null ||
+                ghost.spr == null)
             {
                 return;
             }
 
             if(prevInfo != null && 
                 prevInfo.ColorMapModel == currentInfo.ColorMapModel &&
-                prevInfo.ColorMapSkin == currentInfo.ColorMapSkin)
+                prevInfo.ColorMapSkin == currentInfo.ColorMapSkin &&
+                setColorMapSuccess)
             {
                 return;
             }
@@ -127,10 +99,8 @@ namespace DeadCellsMultiplayerX.Client.Guest.World
             }
 
             ghost.setColorMap(currentInfo.ColorMapModel.AsHaxeString(), currentInfo.ColorMapSkin.AsHaxeString(), null);
-        }
 
-        public void Update()
-        {
+            setColorMapSuccess = true;
         }
 
         public void UpdateInfo(EntityInfo info)
@@ -146,7 +116,6 @@ namespace DeadCellsMultiplayerX.Client.Guest.World
             ghost.hasRepelling = false;
             ghost.detectsWater = false;
 
-            Update();
             UpdateAnim();
             UpdateColorMap();
         }

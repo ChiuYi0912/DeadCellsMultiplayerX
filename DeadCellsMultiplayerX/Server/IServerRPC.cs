@@ -13,10 +13,7 @@ namespace DeadCellsMultiplayerX.Server
     {
         public class AreaInfoRequest
         {
-            public int X { get; set; }
-            public int Y { get; set; }
-            public int Width { get; set; }
-            public int Height { get; set; }
+            public RectInt Rect { get; set; } = new();
             public int SubLevelId { get; set; }
         }
         /// <summary>
@@ -55,7 +52,7 @@ namespace DeadCellsMultiplayerX.Server
         /// </summary>
         /// <param name="guid"></param>
         /// <returns></returns>
-        public Task<EntityInfo> RequestEntityInfo(string guid);
+        public Task<EntityInfo?> RequestEntityInfo(string guid);
 
         /// <summary>
         /// 获取服务器时间

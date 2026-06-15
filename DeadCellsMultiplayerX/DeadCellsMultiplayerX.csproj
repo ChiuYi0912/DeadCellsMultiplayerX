@@ -43,13 +43,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Client\UI\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <None Update="msquic.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Client\Networks\Steam\" />
   </ItemGroup>
 
 </Project>

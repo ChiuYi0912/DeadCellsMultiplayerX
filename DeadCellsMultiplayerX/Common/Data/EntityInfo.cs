@@ -9,17 +9,13 @@ namespace DeadCellsMultiplayerX.Common.Data
     public class EntityInfo
     {
         public string? TypeName { get; set; } = "";
-        public string GUID { get; set; } = "";
-        public string? AtlasName { get; set; }
-        public string? GroupName { get; set; }
-        public int Frame { get; set; }
+        public string GUID { get; set; } = Guid.NewGuid().ToString();
         public long TimeStamp { get; set; } = 0;
-
         public string? ColorMapModel { get; set; }
         public string? ColorMapSkin { get; set; }
-
+        public int SubLevelId { get; set; }
         public SimpleObjData EntityData { get; set; } = new();
-        public SimpleObjData SpritePivotData {  get; set; } = new();
         public Dictionary<int, SimpleObjData> GlowData { get; set; } = [];
+        public SpriteInfo? MainSprite { get; set; }
     }
 }

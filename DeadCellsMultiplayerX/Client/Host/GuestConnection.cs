@@ -1,6 +1,8 @@
-﻿using DeadCellsMultiplayerX.Client.Networks;
+﻿using DeadCellsMultiplayerX.Client.Event;
+using DeadCellsMultiplayerX.Client.Networks;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Utils;
+using ModCore.Events;
 using ModCore.Modules;
 using Nerdbank.Streams;
 using Serilog;
@@ -31,6 +33,8 @@ namespace DeadCellsMultiplayerX.Client.Host
 
         protected override void MyDispose()
         {
+            EventSystem.BroadcastEvent<IOnGuestQuit, GuestInfo>(guestInfo);
+
             host.LobbyInfo.Guests.Remove(guestInfo.Guid);
             rpc?.Dispose();
         }
@@ -79,6 +83,7 @@ namespace DeadCellsMultiplayerX.Client.Host
         public void Quit()
         {
             Logger.Information("Quit.", guestInfo.Guid);
+
             Dispose();
         }
 

@@ -109,7 +109,10 @@ namespace DeadCellsMultiplayerX.Client.Guest
         {
             Debug.Assert(hostInterfact != null);
 
-            hostInterfact.Quit();
+            if (!(rpc?.IsDisposed ?? true))
+            {
+                hostInterfact.Quit();
+            }
 
             Dispose();
         }

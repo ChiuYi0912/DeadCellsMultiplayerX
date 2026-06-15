@@ -25,6 +25,8 @@ namespace DeadCellsMultiplayerX.Client.Host
         private Process? serverProcess;
         private bool canJoin = true;
 
+        private ILogger serverLogger = Log.Logger.ForContext("SourceContext", "Server");
+
         public async Task Init()
         {
             await Task.Yield().ConfigureAwait(false); //不在主线程上执行
@@ -42,10 +44,17 @@ namespace DeadCellsMultiplayerX.Client.Host
                         ["DCMP_HOST_IN_PIPE"] = inPipe.GetClientHandleAsString(),
                         ["DCMP_HOST_OUT_PIPE"] = outPipe.GetClientHandleAsString(),
                     },
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = false
                 }, typeof(ServerMain).Assembly.Location);
 
             serverProcess.Exited += ServerProcess_Exited;
             serverProcess.EnableRaisingEvents = true;
+            //serverProcess.BeginErrorReadLine();
+            serverProcess.BeginOutputReadLine();
+
+            serverProcess.OutputDataReceived += ServerProcess_OutputDataReceived;
+            //serverProcess.ErrorDataReceived += ServerProcess_ErrorDataReceived;
 
             inPipe.DisposeLocalCopyOfClientHandle();
             outPipe.DisposeLocalCopyOfClientHandle();
@@ -84,6 +93,16 @@ namespace DeadCellsMultiplayerX.Client.Host
             Logger.Information("Server started");
         }
 
+        private void ServerProcess_ErrorDataReceived(object sender, DataReceivedEventArgs e)
+        {
+           
+        }
+
+        private void ServerProcess_OutputDataReceived(object sender, DataReceivedEventArgs e)
+        {
+            serverLogger.Information(e.Data ?? "");
+        }
+
         private void ServerProcess_Exited(object? sender, EventArgs e)
         {
             Logger.Information("Server process exited.");
@@ -117,6 +136,12 @@ namespace DeadCellsMultiplayerX.Client.Host
         {
             inPipe?.Dispose();
             outPipe?.Dispose();
+
+            try
+            {
+                serverProcess?.Kill();
+            }
+            catch { }
         }
     }
 }
