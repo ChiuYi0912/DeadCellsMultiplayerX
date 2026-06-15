@@ -10,6 +10,7 @@ using ModCore;
 using ModCore.Mods;
 using ModCore.Utilities;
 using DeadCellsMultiplayerX.Client.UI;
+using dc;
 
 namespace DeadCellsMultiplayerX.Client
 {
@@ -117,6 +118,8 @@ namespace DeadCellsMultiplayerX.Client
         {
             lobby = new(this);
             orig(arg1, playMusic);
+            lobby.createRootInLayers(Main.Class.ME.root, Const.Class.ROOT_DP_MENU);
+            lobby.onResize();
         }
 
         private void Hook_TitleScreen_mainMenu(
@@ -124,16 +127,20 @@ namespace DeadCellsMultiplayerX.Client
         {
             orig(self);
 
+            const int Index =1;
+
             int color = (255 << 16) | (215 << 8) | 0;
-            lobby!.BuildMenuChild("Online", () => lobby.OnlineMenu(self), color: color);
+            lobby!.BuildMenuChild("Online", () => {
+                lobby.OnlineMenu(self);
+            }, color: color);
 
             var wrapper = self.menuItemsWrapper;
-            var menu = wrapper.children.getDyn(wrapper.children.length - 1);
+            var menu = wrapper.children.getDyn(wrapper.children.length - Index);
             wrapper.removeChild(menu);
-            wrapper.addChildAt(menu, 1);
+            wrapper.addChildAt(menu, Index);
 
             var item = self.menuItems.pop();
-            self.menuItems.insert(1, item);
+            self.menuItems.insert(Index, item);
 
             self.fControlLabel.reflow();
             self.select(0, default);
