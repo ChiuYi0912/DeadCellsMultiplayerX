@@ -4,11 +4,15 @@ using dc.libs.heaps.slib.assets;
 using dc.pr;
 using DeadCellsMultiplayerX.Client.Guest.World;
 using DeadCellsMultiplayerX.Common;
+using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Server;
+using DeadCellsMultiplayerX.Utils;
+using Microsoft.VisualStudio.Threading;
 using ModCore.Events.Interfaces.Game.Hero;
 using ModCore.Utilities;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 namespace DeadCellsMultiplayerX.Client.Guest.Ghost
@@ -28,7 +32,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.Ghost
 
         public GuestClientSession Session => session;
 
-        private readonly Dictionary<string, EntityGhost> ghosts = [];
+        private readonly Dictionary<string, IWorldGhost> ghosts = [];
 
         private readonly Dictionary<string, SpriteLib> spriteLibLookup = [];
 
@@ -45,7 +49,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.Ghost
 
         public async Task Init()
         {
-            _ = Loop();
+            Loop().Forget();
         }
 
         private async Task Loop()
@@ -71,6 +75,61 @@ namespace DeadCellsMultiplayerX.Client.Guest.Ghost
             return spriteLib;
         }
 
+        public void UpdateEntity(EntityInfo inf, Level? lvl)
+        {
+            lvl ??= (Level) Game.Class.ME.subLevels.getDyn(inf.SubLevelId);
+
+            var ghost = GetGhost<EntityGhost>(inf.GUID);
+
+            if (ghost == null)
+            {
+                ghost = new(this, lvl, inf.GUID);
+
+                AddGhost(ghost);
+            }
+
+            ghost.SetVisible(true);
+            ghost.UpdateInfo(inf);
+
+            if(inf.MainSprite != null)
+            {
+                UpdateSprite(inf.MainSprite);
+            }
+        }
+
+        public void UpdateSprite(SpriteInfo inf)
+        {
+            var ghost = GetGhost<SpriteGhost>(inf.GUID);
+            if(ghost == null)
+            {
+                ghost = new(this, inf);
+                AddGhost(ghost);
+            }
+            ghost.SetVisible(true);
+            ghost.UpdateInfo(inf);
+
+            foreach(var v in inf.Children)
+            {
+                UpdateSprite(v);
+            }
+        }
+
+        public void AddGhost(IWorldGhost ghost)
+        {
+            ghosts.Add(ghost.GUID, ghost);
+        }
+
+        public T? GetGhost<T>(string guid) where T : class, IWorldGhost
+        {
+            Debug.Assert(Guid.TryParse(guid, out _));
+
+            if(ghosts.TryGetValue(guid, out var ghost))
+            {
+                return (T?) ghost;
+            }
+            return null;
+        }
+
         private async Task UpdateWorld()
         {
             var hero = session.Game?.hero;
@@ -93,55 +152,53 @@ namespace DeadCellsMultiplayerX.Client.Guest.Ghost
             var tileX = vp.realX / 24;
             var tileY = vp.realY / 24;
 
-            int subLevelId = 0;
+            
 
-            for(int i = 0; i < gm.subLevels.length; i++)
-            {
-                if((Level) gm.subLevels.getDyn(i) == lvl)
-                {
-                    subLevelId = i;
-                }
-            }
-
-            var request = new IServerRPC.AreaInfoRequest()
+            var rect = new RectInt()
             {
                 X = (int)tileX - VIEWPORT_WIDTH / 2,
                 Y = (int)tileY - VIEWPORT_HEIGHT / 2,
                 Width = VIEWPORT_HEIGHT,
                 Height = VIEWPORT_WIDTH,
-                SubLevelId = subLevelId 
             };
+           
 
-            if(request.X < 0)
+            if(rect.X < 0)
             {
-                request.X = 0;
+                rect.X = 0;
             }
-            if(request.Y < 0)
+            if(rect.Y < 0)
             {
-                request.Y = 0;
+                rect.Y = 0;
             }
-            if(request.X + request.Width >= map.wid)
+            if(rect.X + rect.Width >= map.wid)
             {
-                request.Width = map.wid - request.X;
+                rect.Width = map.wid - rect.X;
             }
-            if(request.Y + request.Height >= map.hei)
+            if(rect.Y + rect.Height >= map.hei)
             {
-                request.Height = map.hei - request.Y;
+                rect.Height = map.hei - rect.Y;
             }
 
+            var request = new IServerRPC.AreaInfoRequest()
+            {
+                SubLevelId = LevelUtils.GetSubLevelIndex(lvl, gm),
+                Rect = rect
+            };
             var result = await session.Server.RequestAreaInfo(request);
 
             //同步碰撞箱
 
+            var rrect = result.Rect;
             if (result.Collision != null)
             {
                 unsafe
                 {
                     var dst = new Span<int>((void*)map.collisions.bytes, map.collisions.length);
-                    for (int y = 0; y < result.Height; y++)
+                    for (int y = 0; y < rrect.Height; y++)
                     {
-                        var src = new Span<int>(result.Collision, y * result.Width, result.Width);
-                        src.CopyTo(dst.Slice((result.Y + y) * map.wid + result.X, map.wid));
+                        var src = new Span<int>(result.Collision, y * rrect.Width, rrect.Width);
+                        src.CopyTo(dst.Slice((rrect.Y + y) * map.wid + rrect.X, map.wid));
                     }
                 }
             }
@@ -150,30 +207,20 @@ namespace DeadCellsMultiplayerX.Client.Guest.Ghost
 
             foreach(var v in ghosts.Values)
             {
-               v.SetVisble(false); //隐藏不可见的 Entity (状态未知)
+               v.SetVisible(false); //隐藏不可见的 Entity (状态未知)
             }
             
-            // 更新 Ghost 状态
+            // 更新 Entity Ghost 状态
             foreach(var v in result.Entities)
             {
-                //Logger.Information("Syncing entity: {type} {pos}", v.TypeName, v.Position);
-                if(!ghosts.TryGetValue(v.GUID, out var ghost))
-                {
-                    ghost = new(this, lvl, v.GUID);
-                    ghosts.Add(v.GUID, ghost);
-                }
-                ghost.SetVisble(true);
-                ghost.UpdateInfo(v);
+                UpdateEntity(v, lvl);
             }
 
         }
 
         void IOnHeroUpdate.OnHeroUpdate(double dt)
         {
-            foreach(var v in ghosts.Values.ToArray())
-            {
-                v.Update();
-            }
+            
         }
     }
 }

@@ -45,16 +45,16 @@ namespace DeadCellsMultiplayerX.Client.Host
                         ["DCMP_HOST_OUT_PIPE"] = outPipe.GetClientHandleAsString(),
                     },
                     RedirectStandardOutput = true,
-                    RedirectStandardError = true
+                    RedirectStandardError = false
                 }, typeof(ServerMain).Assembly.Location);
 
             serverProcess.Exited += ServerProcess_Exited;
             serverProcess.EnableRaisingEvents = true;
-            serverProcess.BeginErrorReadLine();
+            //serverProcess.BeginErrorReadLine();
             serverProcess.BeginOutputReadLine();
 
             serverProcess.OutputDataReceived += ServerProcess_OutputDataReceived;
-            serverProcess.ErrorDataReceived += ServerProcess_ErrorDataReceived;
+            //serverProcess.ErrorDataReceived += ServerProcess_ErrorDataReceived;
 
             inPipe.DisposeLocalCopyOfClientHandle();
             outPipe.DisposeLocalCopyOfClientHandle();

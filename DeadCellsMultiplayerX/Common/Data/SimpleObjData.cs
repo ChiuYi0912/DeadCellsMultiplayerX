@@ -13,7 +13,8 @@ namespace DeadCellsMultiplayerX.Common.Data
             Unknown,
             Int,
             Bool,
-            Double
+            Double,
+            String
         }
         private record class SFieldInfo(string Name, PropertyInfo Field, SFieldKind Kind);
 
@@ -22,6 +23,7 @@ namespace DeadCellsMultiplayerX.Common.Data
         public Dictionary<string, int> IntValues { get; set; } = [];
         public Dictionary<string, bool> BoolValues { get; set; } = [];
         public Dictionary<string, double> DoubleValues { get; set; } = [];
+        public Dictionary<string, string> StringValues { get; set; } = [];
 
         public void Serialize(object? obj, System.Type? type)
         {
@@ -57,6 +59,10 @@ namespace DeadCellsMultiplayerX.Common.Data
                 {
                     DoubleValues[v.Name] = (double)val;
                 }
+                else if(v.Kind == SFieldKind.String)
+                {
+                    StringValues[v.Name] = (string)val;
+                }
             }
         }
 
@@ -91,6 +97,10 @@ namespace DeadCellsMultiplayerX.Common.Data
                 else if (v.Kind == SFieldKind.Double)
                 {
                     val = GetValue(DoubleValues, v.Name);
+                }
+                else if(v.Kind == SFieldKind.String)
+                {
+                    val = StringValues.TryGetValue(v.Name, out var stringVal) ? stringVal : null;
                 }
                 else
                 {

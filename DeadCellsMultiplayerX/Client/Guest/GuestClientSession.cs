@@ -5,6 +5,7 @@ using dc.pr;
 using dc.tool;
 using DeadCellsMultiplayerX.Client.Guest.Ghost;
 using DeadCellsMultiplayerX.Client.Host;
+using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Server;
 using DeadCellsMultiplayerX.Utils;
 using Microsoft.VisualStudio.Threading;
@@ -33,6 +34,7 @@ namespace DeadCellsMultiplayerX.Client.Guest
         private bool isOwner = false;
         private byte[]? saveData;
         private WorldDirector? worldDirector;
+        private Task? syncTimeStampTask;
 
         private long lastSyncStopwatchTime = 0;
         private long prevStopwatchTime = 0;
@@ -241,21 +243,34 @@ namespace DeadCellsMultiplayerX.Client.Guest
                 return;
             }
 
+            if(rpc?.IsDisposed ?? true)
+            {
+                return;
+            }
+
             CurrentTimeStamp += stopwatch.ElapsedMilliseconds - prevStopwatchTime;
             prevStopwatchTime = stopwatch.ElapsedMilliseconds;
 
             if(stopwatch.ElapsedMilliseconds - lastSyncStopwatchTime > 5 * 1000 ||
                 lastSyncStopwatchTime == 0)
             {
+                if(syncTimeStampTask?.IsCompleted ?? false)
+                {
+                    return;
+                }
                 long startTime;
                 //与服务器同步
                 async Task SyncWithServer()
                 {
-                    startTime = stopwatch.ElapsedMilliseconds;
-                    var time = await Server.GetTimeStamp();
-                    CurrentTimeStamp = time + (stopwatch.ElapsedMilliseconds - startTime) / 2;
+                    try
+                    {
+                        startTime = stopwatch.ElapsedMilliseconds;
+                        var time = await Server.GetTimeStamp();
+                        CurrentTimeStamp = time + (stopwatch.ElapsedMilliseconds - startTime) / 2;
+                    }catch(Exception) when (IsDisposed || (rpc?.IsDisposed ?? true))
+                    { }
                 }
-                SyncWithServer().Forget();
+                syncTimeStampTask = SyncWithServer();
             }
         }
 
@@ -266,6 +281,11 @@ namespace DeadCellsMultiplayerX.Client.Guest
             UpdateTimeStamp();
 
             
+        }
+
+        public void UpdateEntity(EntityInfo info)
+        {
+            worldDirector?.UpdateEntity(info, null);
         }
     }
 }

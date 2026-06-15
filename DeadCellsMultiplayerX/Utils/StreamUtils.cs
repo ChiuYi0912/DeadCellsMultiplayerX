@@ -1,4 +1,5 @@
 ﻿using Nerdbank.Streams;
+using PolyType.SourceGenerator;
 using StreamJsonRpc;
 using System;
 using System.Collections.Generic;
@@ -26,13 +27,16 @@ namespace DeadCellsMultiplayerX.Utils
         public static JsonRpc CreateJsonRpc(this Stream stream)
         {
             var rpcChannel = stream.CreateMultiplexingStream(out var mxstream);
-            var formatter = new JsonMessageFormatter
+            var formatter = new NerdbankMessagePackFormatter
             {
                 MultiplexingStream = mxstream,
+                TypeShapeProvider = TypeShapeProvider_DeadCellsMultiplayerX.Default,
             };
-            var handler = new HeaderDelimitedMessageHandler(rpcChannel, formatter);
-            var rpc = new JsonRpc(handler);
-            rpc.TraceSource = new TraceSource("JSON-RPC", SourceLevels.Warning);
+            var handler = new LengthHeaderMessageHandler(rpcChannel, rpcChannel, formatter);
+            var rpc = new JsonRpc(handler)
+            {
+                TraceSource = new TraceSource("JSON-RPC", SourceLevels.Warning)
+            };
             rpc.TraceSource.Listeners.Add(new ConsoleTraceListener(true));
             return rpc;
         }

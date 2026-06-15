@@ -29,8 +29,14 @@ namespace DeadCellsMultiplayerX
 
             //可以捕获到奇怪的报错
             #if DEBUG
-                Hook_Boot.mainLoop+= Hook_Boot_mainLoop;
+            Hook_Boot.mainLoop+= Hook_Boot_mainLoop;
+            TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
             #endif
+        }
+
+        private void TaskScheduler_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+        {
+            Logger.Fatal(e.Exception, "TaskScheduler_UnobservedTaskException.");
         }
 
         private void Hook_Boot_mainLoop(Hook_Boot.orig_mainLoop orig, Boot self)

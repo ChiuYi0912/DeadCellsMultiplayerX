@@ -72,8 +72,8 @@ namespace DeadCellsMultiplayerX.Server
             Hook_Loader.loadCache += Hook_Loader_loadCache;
             Hook_Texture.dispose += Hook_Texture_dispose;
             //Hook_Boot.render += Hook_Boot_render;
-            Hook_SpriteLib.getNormalMapFromGroup += Hook_SpriteLib_getNormalMapFromGroup;
-            Hook_SpriteLib.getNormalMapFromSprite += Hook_SpriteLib_getNormalMapFromSprite;
+            //Hook_SpriteLib.getNormalMapFromGroup += Hook_SpriteLib_getNormalMapFromGroup;
+            //Hook_SpriteLib.getNormalMapFromSprite += Hook_SpriteLib_getNormalMapFromSprite;
 
             dc.libs.heaps.slib.assets.Hook__Atlas.load += Hook__Atlas_load;
             Hook_Entity.setColorMap += Hook_Entity_setColorMap;
@@ -100,6 +100,14 @@ namespace DeadCellsMultiplayerX.Server
             Hook_Entity._isOnScreen += Hook_Entity__isOnScreen;
             Hook_Entity.setGlowColor += Hook_Entity_setGlowColor;
             Hook_Entity.setGlowData += Hook_Entity_setGlowData;
+            Hook_Entity.dispose += Hook_Entity_dispose;
+        }
+
+        private void Hook_Entity_dispose(Hook_Entity.orig_dispose orig, Entity self)
+        {
+            orig(self);
+
+            EventSystem.BroadcastEvent<IOnEntityDisposed, Entity>(self);
         }
 
         private void Hook__File_saveSteamCloudStatus(dc.tool.Hook__File.orig_saveSteamCloudStatus orig)

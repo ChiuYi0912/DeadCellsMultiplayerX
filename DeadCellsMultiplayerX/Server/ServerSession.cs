@@ -1,4 +1,5 @@
 ﻿using DeadCellsMultiplayerX.Common;
+using DeadCellsMultiplayerX.Server.Connection;
 using Microsoft.VisualStudio.Threading;
 using ModCore;
 using ModCore.Events.Interfaces.Game;

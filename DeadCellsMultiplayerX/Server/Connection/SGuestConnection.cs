@@ -1,4 +1,5 @@
 ﻿using dc;
+using dc.libs.heaps.slib;
 using DeadCellsMultiplayerX.Client;
 using DeadCellsMultiplayerX.Client.Guest;
 using DeadCellsMultiplayerX.Client.Host;
@@ -18,25 +19,22 @@ using StreamJsonRpc;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Text;
 
-namespace DeadCellsMultiplayerX.Server
+namespace DeadCellsMultiplayerX.Server.Connection
 {
     internal partial class SGuestConnection :
         DisposableEventReceiver,
         IOnServerEnterNewLevel,
         IOnEntitySetColorMap,
-        IOnEntitySetGlowData
+        IOnEntitySetGlowData,
+        IOnEntityDisposed
     {
-        private class EntityInfo2
-        {
-            public readonly EntityInfo info = new()
-            {
-                GUID = Guid.NewGuid().ToString()
-            };
-            public Entity? entity;
-        }
+        
+
+        private IServerRPC.AreaInfoRequest? lastRequest;
 
         private readonly JsonRpc rpc;
         public GuestInfo guestInfo = new();
@@ -46,7 +44,6 @@ namespace DeadCellsMultiplayerX.Server
         public ServerMainThread Main => Session.Main;
         public IGuestRPC guest;
 
-        private readonly Dictionary<int, EntityInfo2> entitiesInfo = [];
 
         public SGuestConnection(ServerSession session, Stream connection)
         {
@@ -85,20 +82,8 @@ namespace DeadCellsMultiplayerX.Server
             rpc?.Dispose();
         }
 
-        private EntityInfo2 GetEntityInfo(Entity e)
-        {
-            if(!entitiesInfo.TryGetValue(e.__uid, out var result))
-            {
-                result = new()
-                {
-                    entity = e,
-                };
-                entitiesInfo.Add(e.__uid, result);
-            }
-            result.entity = e;
-            return result;
-        }
-       
+
+
         void IOnServerEnterNewLevel.OnServerEnterNewLevel()
         {
             Debug.Assert(Main.savePath != null);
@@ -108,7 +93,7 @@ namespace DeadCellsMultiplayerX.Server
 
         void IOnEntitySetColorMap.OnEntitySetColorMap(IOnEntitySetColorMap.Data data)
         {
-            var info = GetEntityInfo(data.Entity).info;
+            var info = GetEntityInfo(data.Entity);
             info.ColorMapSkin = data.Skin;
             info.ColorMapModel = data.Model;
 
@@ -117,12 +102,17 @@ namespace DeadCellsMultiplayerX.Server
 
         void IOnEntitySetGlowData.OnEntitySetGlowData(IOnEntitySetGlowData.Data data)
         {
-            var info = GetEntityInfo(data.Entity).info;
+            var info = GetEntityInfo(data.Entity);
 
             var gd = new virtual_animationIntensity_animationScale_animationSpeed_animationTextureMask_inner_key_outer_power_();
             var gdd = new SimpleObjData();
             gdd.Serialize(gd, null);
             info.GlowData[data.Index] = gdd;
+        }
+
+        void IOnEntityDisposed.OnEntityDisposed(Entity e)
+        {
+            //entitiesInfo.Remove(e.HashlinkPointer);
         }
     }
 }

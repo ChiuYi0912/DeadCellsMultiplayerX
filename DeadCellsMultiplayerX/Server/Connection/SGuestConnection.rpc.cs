@@ -8,12 +8,15 @@ using DeadCellsMultiplayerX.Utils;
 using ModCore.Utilities;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
-namespace DeadCellsMultiplayerX.Server
+namespace DeadCellsMultiplayerX.Server.Connection
 {
     internal partial class SGuestConnection : IServerRPC
     {
+
+
         public Task<bool> CheckVersion(string version)
         {
             if (Version.Parse(version) != VersionUtils.ModVersion)
@@ -69,44 +72,44 @@ namespace DeadCellsMultiplayerX.Server
 
         public async Task<AreaInfo> RequestAreaInfo(IServerRPC.AreaInfoRequest request)
         {
-            if (request.X < 0)
+            var rect = request.Rect;
+            if (rect.X < 0)
             {
-                request.X = 0;
+                rect.X = 0;
             }
-            if (request.Y < 0)
+            if (rect.Y < 0)
             {
-                request.Y = 0;
+                rect.Y = 0;
             }
             var areaInfo = new AreaInfo()
             {
-                X = request.X,
-                Y = request.Y,
-                Width = request.Width,
-                Height = request.Height
+                Rect = rect
             };
+
+            lastRequest = request;
 
             var lvl = (dc.pr.Level)dc.pr.Game.Class.ME.subLevels.getDyn(request.SubLevelId);
             var map = lvl.map;
 
-            areaInfo.Collision = new int[areaInfo.Width * areaInfo.Height];
+            areaInfo.Collision = new int[rect.Width * rect.Height];
 
             // 碰撞箱
             unsafe
             {
                 var src = new Span<int>((void*)map.collisions.bytes, map.collisions.length);
-                for (int y = 0; y < areaInfo.Height; y++)
+                for (int y = 0; y < rect.Height; y++)
                 {
-                    var dst = new Span<int>(areaInfo.Collision, y * areaInfo.Width, areaInfo.Width);
-                    src.Slice((areaInfo.Y + y) * map.wid + areaInfo.X, areaInfo.Width).CopyTo(dst);
+                    var dst = new Span<int>(areaInfo.Collision, y * rect.Width, rect.Width);
+                    src.Slice((rect.Y + y) * map.wid + rect.X, rect.Width).CopyTo(dst);
                 }
             }
 
             // Entity
             {
-                var rx = areaInfo.X;
-                var ry = areaInfo.Y;
-                var rxt = areaInfo.X + areaInfo.Width;
-                var ryt = areaInfo.Y + areaInfo.Height;
+                var rx = rect.X;
+                var ry = rect.Y;
+                var rxt = rect.X + rect.Width;
+                var ryt = rect.Y + rect.Height;
 
                 foreach (Entity v in lvl.entities)
                 {
@@ -117,25 +120,11 @@ namespace DeadCellsMultiplayerX.Server
 
                     if (v.cx >= rx && v.cx <= rxt && v.cy >= ry && v.cy <= ryt && v.visible)
                     {
-                        EntityInfo inf = GetEntityInfo(v).info;
+                        EntityInfo inf = GetEntityInfo(v);
 
                         v.isOnScreen = true;
 
-                        inf.TypeName = v.GetType().FullName;
-
-                        inf.EntityData.Serialize(v, typeof(Entity));
-                        inf.SpritePivotData.Serialize(v.spr?.pivot, typeof(SpritePivot));
-
-                        var spr = v.spr;
-                        if (spr != null)
-                        {
-                            if (ServerMain.Instance.spriteLib2altas.TryGetValue(spr.lib, out var atlasPath))
-                            {
-                                inf.AtlasName = atlasPath;
-                                inf.GroupName = spr.groupName.ToString();
-                                inf.Frame = spr.frame;
-                            }
-                        }
+                        FillEntityInfo(v, inf);
 
                         areaInfo.Entities.Add(inf);
                     }
@@ -145,9 +134,11 @@ namespace DeadCellsMultiplayerX.Server
             return areaInfo;
         }
 
-        public Task<EntityInfo> RequestEntityInfo(string guid)
+
+
+        public Task<EntityInfo?> RequestEntityInfo(string guid)
         {
-            throw new NotImplementedException();
+            return Task.FromResult(GetEntityInfo(guid));
         }
 
         public Task<long> GetTimeStamp()
