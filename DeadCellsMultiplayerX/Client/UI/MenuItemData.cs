@@ -2,23 +2,34 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using dc.h2d;
+using dc.ui;
+using dc.uicore;
 
 namespace DeadCellsMultiplayerX.Client.UI
 {
-    public class MenuItemData
+    public class Page
     {
-        public MenuItemPage PageId { get ; set; }
-        public string Title { get; set; } = string.Empty;
-        public string Description { get; set; } = string.Empty;
-        public int Color { get; set; } = 0xFFFFFF;
-        public Action OnClick =null!;
-        public bool Enabled;
+        public FlowBox mainFlow = null!;
+        public double targetX;
+        public double startX;
+        public bool built;
     }
 
-    public enum MenuItemPage
+    public enum PageKind
     {
+        Lobby, 
+
+        Host,
+
+        Client,
+
+        GameMian,
+
         OnlineMian,
-        CretaeROOM,
-        JoinROOM
+
+        SteamP2P,
+
+        Settings
     }
 }

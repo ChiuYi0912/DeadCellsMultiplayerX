@@ -8,9 +8,6 @@ using dc.libs.heaps.slib;
 using dc.libs.misc;
 using dc.pr;
 using dc.ui;
-using DeadCellsMultiplayerX.Client.Guest;
-using DeadCellsMultiplayerX.Client.Host;
-using DeadCellsMultiplayerX.Common;
 using Hashlink.Virtuals;
 using HaxeProxy.Runtime;
 using ModCore.Modules;
@@ -275,7 +272,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             {
                 btn.interactive.width  = btn.calculatedWidth;
                 btn.interactive.height = btn.calculatedHeight;
-                btn.interactive.onClick = new HlAction<Event>(_ => {
+                btn.interactive.onClick = new HlAction<dc.hxd.Event>(_ => {
                     cb();
                     LoadAudioFormString("sfx/ui/menu_select.wav");
                 });
@@ -291,7 +288,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             sel.pivot.isUndefined = false;
             btn.addChild(sel);
 
-            btn.interactive!.onCheck = new HlAction<Event>(_ =>
+            btn.interactive!.onCheck = new HlAction<dc.hxd.Event>(_ =>
             {
                 sel.visible = true;
                 sel.scaleX = sel.scaleY = text.scaleX;
