@@ -1,3 +1,4 @@
+using CoreLibrary.Utilities;
 using dc;
 using dc.h2d;
 using dc.hl.types;
@@ -23,6 +24,13 @@ namespace DeadCellsMultiplayerX.Client.UI
         private readonly Dictionary<PageKind, Page> pages = [];
         private Page? currentPage;
 
+        public ModConfig config =null!;
+
+        /// <summary>
+        /// 按键检测
+        /// </summary>
+        public ControllerHelperSuper<ModConfig> controllerSuer =null!;
+
 
         /// <summary>
         /// 页面位置
@@ -46,10 +54,11 @@ namespace DeadCellsMultiplayerX.Client.UI
             LayoutSlideX = ScreenW + pixel(20);
         }
 
-        public LobbyMenu(ClientMain client) : base(null)
+        public LobbyMenu(ClientMain client,TitleScreen titleScreen) : base(null)
         {
             this.client = client;
             this.logger = Log.ForContext(GetType());
+            config =ModConfig.Config.Value;
         }
 
         /// <summary>
@@ -68,9 +77,9 @@ namespace DeadCellsMultiplayerX.Client.UI
             {
                 switch (kind)
                 {
-                    case PageKind.Lobby: BuildPageLobby(page); break;
                     case PageKind.Host: BuildHostPage(page);  break;
                     case PageKind.Client: BuildClientPage(page); break;
+
                 }
                 page.built = true;
             }
@@ -100,27 +109,18 @@ namespace DeadCellsMultiplayerX.Client.UI
             currentPage = newPage;
         }
 
-        /// <summary>
-        /// 客户显示的ui
-        /// </summary>
-        /// <param name="page"></param>
-        public void BuildClientPage(Page page)
-        {
-            
-        }
-
 
         /// <summary>
-        /// 测试
+        /// 房主ui
         /// </summary>
         /// <param name="page"></param>
-        private void BuildPageLobby(Page page)
+        private void BuildHostPage(Page page)
         {
             var flow = CreateFlowBox();
             page.mainFlow = flow;
             int pw = LayoutPanelW;
 
-            var title = Assets.Class.makeMedievalText("Online room".AsHaxeString(), null, flow, null);
+            var title = Assets.Class.makeMedievalText("创建房间".AsHaxeString(), null, flow, null);
             title.set_textAlign(new Align.Center());
             title.maxWidthWanted = pw;
             title.onResize();
@@ -141,28 +141,28 @@ namespace DeadCellsMultiplayerX.Client.UI
             btnFlow.set_minWidth(pw - pixel(20));
             btnFlow.set_horizontalSpacing(pixel(8));
             btnFlow.set_verticalAlign(new FlowAlign.Middle());
+            btnFlow.set_maxWidth(pw);
+            btnFlow.multiline = true;
 
-            BuildBtn(btnFlow, "准备", () => { });
-            BuildBtn(btnFlow, "TEST Host Pag", () => SwitchPage(PageKind.Host));
-            BuildBtn(btnFlow, "TEST Client Pag", () => SwitchPage(PageKind.Client));
-            BuildBtn(btnFlow, "退出房间",  () => SetVisible(false));
-            BuildBtn(btnFlow, "更新内容", () => SetVisible(false));
+            BuildBtn(btnFlow, "开始游戏", () => SwitchPage(PageKind.Host));
+            BuildBtn(btnFlow, "退出房间", () => SetVisible(false));
+            
             btnFlow.reflow();
 
             FinalizePage(page);
         }
 
         /// <summary>
-        /// 房主显示的ui
+        /// 客户ui
         /// </summary>
         /// <param name="page"></param>
-        private void BuildHostPage(Page page)
+        private void BuildClientPage(Page page)
         {
             var flow = CreateFlowBox();
             page.mainFlow = flow;
             int pw = LayoutPanelW;
 
-            var title = Assets.Class.makeMedievalText("Host Pag".AsHaxeString(), null, flow, null);
+            var title = Assets.Class.makeMedievalText("加入房间".AsHaxeString(), null,flow,null);
             title.set_textAlign(new Align.Center());
             title.maxWidthWanted = pw;
             title.onResize();
@@ -170,7 +170,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             AddSpacer(flow, pw);
 
             var skinLine = AddLine(flow, pw);
-            Assets.Class.makeText("玩家:列表".AsHaxeString(), 0xDDDDDD, null, skinLine);
+            Assets.Class.makeText("玩家:列表".AsHaxeString(), 0xDDDDDD, null, flow);
             skinLine.reflow();
 
             AddSpacer(flow, pw);
@@ -180,7 +180,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             btnFlow.set_horizontalSpacing(pixel(8));
             btnFlow.set_verticalAlign(new FlowAlign.Middle());
 
-            BuildBtn(btnFlow, "返回", () => SwitchPage(PageKind.Lobby));
+            BuildBtn(btnFlow, "退出房间", () => SetVisible(false));
             btnFlow.reflow();
 
             FinalizePage(page);
@@ -266,6 +266,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             btn.set_padding(pixel(4));
             btn.set_minWidth(pixel(60));
             var text = Assets.Class.makeText(label.AsHaxeString(), color, null, btn);
+            text.realMaxWidth = LayoutPanelW/parent.children.length;
             btn.set_enableInteractive(true);
             btn.reflow();
             if (btn.interactive != null)
@@ -292,7 +293,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             {
                 sel.visible = true;
                 sel.scaleX = sel.scaleY = text.scaleX;
-                sel.x = -pixel(5);
+                //sel.x = -pixel(5);
                 sel.y = text.y*1.5;
             });
 
@@ -321,7 +322,10 @@ namespace DeadCellsMultiplayerX.Client.UI
         {
             if (root == null) onResize();
             if (v)
+            {
+                currentPage=null!;
                 SwitchPage(PageKind.Lobby);
+            }
             else if (currentPage != null)
             {
                 var outanim =AnimatePage(currentPage, LayoutSlideX);
@@ -359,11 +363,12 @@ namespace DeadCellsMultiplayerX.Client.UI
 #endif
             BuildMenuChild(T("创建房间"), () => { 
                 //ClientMain.Instance.StartHost("127.0.0.1", 44567); 
-                onResize(); SetVisible(true); 
+                SwitchPage(PageKind.Host);
+
             });
             BuildMenuChild(T("加入房间"), () => { 
                 //ClientMain.Instance.StartGuest("127.0.0.1", 44567); 
-                onResize(); SetVisible(true); 
+                SwitchPage(PageKind.Client);
             });
             BuildMenuChild(T("返回"),     () => { screen.mainMenu(); SetVisible(false); });
         }

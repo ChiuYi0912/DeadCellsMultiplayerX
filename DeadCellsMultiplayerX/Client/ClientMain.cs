@@ -116,9 +116,10 @@ namespace DeadCellsMultiplayerX.Client
 
         private void Hook__TitleScreen__constructor__(Hook__TitleScreen.orig___constructor__ orig, TitleScreen arg1, bool? playMusic)
         {
-            lobby = new(this);
+            lobby = new(this,arg1);
             orig(arg1, playMusic);
             lobby.createRootInLayers(Main.Class.ME.root, Const.Class.ROOT_DP_MENU);
+            lobby.controllerSuer = new(ModConfig.Config, lobby.config.ControlKeys, arg1.controller.parent);
             lobby.onResize();
         }
 
