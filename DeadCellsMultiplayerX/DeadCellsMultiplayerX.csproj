@@ -28,7 +28,12 @@
     <Reference Include="ModCore.Native" />
     <Reference Include="DebugConsole" />
 
+    <Reference Include="CoreLibrary">
+      <HintPath>libs\CoreLibrary.dll</HintPath>
+    </Reference>
+
     <OutputFiles Include="msquic.dll" />
+    <OutputFiles Include="libs\CoreLibrary.dll" />
     
     <OutputFiles Include="$(OutputPath)/StreamJsonRpc.dll" />
     <OutputFiles Include="$(OutputPath)/StbImageSharp.dll" />

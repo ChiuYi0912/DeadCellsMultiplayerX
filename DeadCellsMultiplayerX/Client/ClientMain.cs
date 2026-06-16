@@ -11,6 +11,7 @@ using ModCore.Mods;
 using ModCore.Utilities;
 using DeadCellsMultiplayerX.Client.UI;
 using dc;
+using ModCore.Modules;
 
 namespace DeadCellsMultiplayerX.Client
 {
@@ -116,10 +117,13 @@ namespace DeadCellsMultiplayerX.Client
 
         private void Hook__TitleScreen__constructor__(Hook__TitleScreen.orig___constructor__ orig, TitleScreen arg1, bool? playMusic)
         {
-            lobby = new(this);
+            lobby = new(this,arg1);
             orig(arg1, playMusic);
             lobby.createRootInLayers(Main.Class.ME.root, Const.Class.ROOT_DP_MENU);
+            lobby.controllerSuper = new(ModConfig.Config, lobby.config.ControlKeys, arg1.controller.parent);
             lobby.onResize();
+
+            lobby.RegisterMode(new DefaultPageUI(lobby));
         }
 
         private void Hook_TitleScreen_mainMenu(
@@ -131,11 +135,15 @@ namespace DeadCellsMultiplayerX.Client
 
             int color = (255 << 16) | (215 << 8) | 0;
             lobby!.BuildMenuChild("Online", () => {
-                lobby.OnlineMenu(self);
+                self.isMainMenu = false;
+                self.clearMenu();
+                lobby.BuildLeftMenu();
+
+                lobby.BuildMenuChild(T("TEST_HOST"), () => Test.Start());
             }, color: color);
 
             var wrapper = self.menuItemsWrapper;
-            var menu = wrapper.children.getDyn(wrapper.children.length - Index);
+            var menu = wrapper.children.getDyn(wrapper.children.length - 1);
             wrapper.removeChild(menu);
             wrapper.addChildAt(menu, Index);
 
@@ -145,6 +153,8 @@ namespace DeadCellsMultiplayerX.Client
             self.fControlLabel.reflow();
             self.select(0, default);
         }
+        private static string T(string key) => GetText.Instance.GetString(key);
+
         #endregion
     }
 }
