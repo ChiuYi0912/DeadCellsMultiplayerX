@@ -119,10 +119,10 @@ namespace DeadCellsMultiplayerX.Client
         {
             lobby = new(this,arg1);
             orig(arg1, playMusic);
-            lobby.createRootInLayers(Main.Class.ME.root, Const.Class.ROOT_DP_MENU);
-            lobby.controllerSuper = new(ModConfig.Config, lobby.config.ControlKeys, arg1.controller.parent);
-            lobby.onResize();
 
+            lobby.createRootInLayers(Main.Class.ME.root, dc.Const.Class.ROOT_DP_MENU);
+            lobby.controllerHelper = new(ModConfig.Config, lobby.config.ControlKeys, arg1.controller.parent);
+            lobby.onResize();
             lobby.RegisterMode(new DefaultPageUI(lobby));
         }
 
@@ -130,17 +130,12 @@ namespace DeadCellsMultiplayerX.Client
             Hook_TitleScreen.orig_mainMenu orig, TitleScreen self)
         {
             orig(self);
+            lobby!.BuildMenuChild("Test_Host", () => Test.Start());
 
             const int Index =1;
 
             int color = (255 << 16) | (215 << 8) | 0;
-            lobby!.BuildMenuChild("Online", () => {
-                self.isMainMenu = false;
-                self.clearMenu();
-                lobby.BuildLeftMenu();
-
-                lobby.BuildMenuChild(T("TEST_HOST"), () => Test.Start());
-            }, color: color);
+            lobby!.BuildMenuChild("Online", () => lobby.Show(), color: color);
 
             var wrapper = self.menuItemsWrapper;
             var menu = wrapper.children.getDyn(wrapper.children.length - 1);

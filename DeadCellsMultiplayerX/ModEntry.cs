@@ -12,12 +12,13 @@ namespace DeadCellsMultiplayerX
 {
     internal class ModEntry(ModInfo info) : ModBase(info)
     {
-
+        public static ModEntry Instance { get; private set; }=null!;
         /// <summary>
         /// 初始化
         /// </summary>
         public override void Initialize()
         {
+            Instance =this;
             if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DCCM_MULTIPLAYER_NO_CLIENT")))
             {
                 return;
