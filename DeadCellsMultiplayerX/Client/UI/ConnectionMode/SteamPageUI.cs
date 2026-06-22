@@ -9,7 +9,7 @@ namespace DeadCellsMultiplayerX.Client.UI.ConnectionMode
     {
         public SteamPageUI(LobbyMenu manager) : base(manager, "SteamP2P")
         {
-            
+            addmenu=new Action(()=>{});
         }
         public override void AfterBuildClient()
         {

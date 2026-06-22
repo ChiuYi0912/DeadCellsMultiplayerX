@@ -128,6 +128,9 @@ namespace DeadCellsMultiplayerX.Client
             lobby.onResize();
             lobby.RegisterMode(new DefaultPageUI(lobby));
             lobby.RegisterMode(new SteamPageUI(lobby));
+
+            if(lobby.curTopbts > lobby.modes.Count - 1 || lobby.curTopbts < 0)
+                lobby.curTopbts = 0;
         }
 
         private void Hook_TitleScreen_mainMenu(

@@ -53,8 +53,6 @@ namespace DeadCellsMultiplayerX.Client.UI
             tile.height = (int)Flow.minHeight!;
             var bmap =new Bitmap(tile,null);
             Flow.addChildAt(bmap,1);
-
-            BuildInformation();
         }
         public abstract void AfterBuildHost();
         public abstract void AfterBuildClient();
@@ -188,11 +186,10 @@ namespace DeadCellsMultiplayerX.Client.UI
         /// <summary>
         /// 基本信息
         /// </summary>
-        private void BuildInformation()
+        public void BuildInformation()
         {
             Information = new Flow(Manager.rightFlowMain);
             var right = Information;
-
             if (right == null) return;
 
             int w = PanelW/2;

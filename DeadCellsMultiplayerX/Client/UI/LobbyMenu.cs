@@ -24,7 +24,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         private readonly ClientMain client;
         private readonly ILogger logger;
 
-        private readonly List<BasePageUI> modes = [];
+        public readonly List<BasePageUI> modes = [];
         private readonly List<BtnData> btns =[];
         private readonly List<BtnData> topbtns =[];
 
@@ -45,13 +45,22 @@ namespace DeadCellsMultiplayerX.Client.UI
 
 
         private HSprite? selection;
+        private HSprite? tapselection;
         private ArrayObj? defaultbtns; 
 
         internal int ScreenW { get; private set; }
         internal int ScreenH { get; private set; }
         internal int PanelW { get; private set; }
         public bool lockInter { get ; set; }
-        public int curTopbts { get ; set; } =0;
+        public int curTopbts
+        {
+            get => config.currentMode;
+            set
+            {
+                config.currentMode = value;
+                ModConfig.Config.Save();
+            }
+        }
 
         private BasePageUI? currentMode;
 
@@ -85,6 +94,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             setControlLabel();
             if (root == null) onResize();
             BuildUI();
+            currentMode?.BuildInformation();
             titleScreen.controller.manualLock = true;
             titleScreen.blur(default, default);
         }
@@ -105,10 +115,12 @@ namespace DeadCellsMultiplayerX.Client.UI
             ClearContent(rightFlow);
             mode.BuildRight(rightFlow, PanelW);
             rightFlow.reflow();
+            mainFlow!.reflow();
         }
 
         private void BuildUI()
         {
+            
             CalcLayout();
             int tabH = pixel(36);
             int gap  = pixel(8);
@@ -131,6 +143,16 @@ namespace DeadCellsMultiplayerX.Client.UI
             tabFlow.set_verticalAlign(new FlowAlign.Top());
             tabFlow.set_horizontalSpacing(pixel(6));
 
+            tapselection = new HSprite(Assets.Class.ui, "selectLeftRight".AsHaxeString(), Ref<int>.In(0), null);
+            tapselection.scaleX = tapselection.scaleY = get_pixelScale.Invoke()/2;
+            var pivot = tapselection.pivot;
+            pivot.centerFactorX = 0;
+            pivot.centerFactorY = 0;
+            pivot.usingFactor = true;
+            pivot.isUndefined = false;
+            tabFlow.addChild(tapselection);
+            tabFlow.getProperties(tapselection).set_isAbsolute(true);
+
             //切换按钮
             var q = ControlIcon.Class.action.Invoke(keys[ControllerKey.Tab_Exchange_Q], 0, 0, tabFlow);
             var e = ControlIcon.Class.action.Invoke(keys[ControllerKey.Tab_Exchange_E], 0, 0, tabFlow);
@@ -139,14 +161,18 @@ namespace DeadCellsMultiplayerX.Client.UI
             tabFlow.getProperties(e).paddingTop = pixel(5);
             tabFlow.getProperties(q).paddingTop = pixel(5);
 
-
-
+            topbtns.Clear();
             foreach (var m in modes)
             {
                 var mode = m;
-                BuildTab(tabFlow, mode.Name, () => SelectMode(mode));
+                BuildTab(tabFlow, mode.Name, () => {});
             }
             tabFlow.reflow();
+
+            Point point = tapselection!.parent.globalToLocal(topbtns[curTopbts].text!.localToGlobal(null));
+            tapselection.x = point.x - (int)(get_pixelScale.Invoke() * 5.0);
+            tapselection.y = point.y;
+            tapselection.posChanged = true;
 
             // 上下分隔
             var spacer = new Graphics(mainFlow);
@@ -173,7 +199,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             selection =new HSprite(Assets.Class.ui, "selectLeftRight".AsHaxeString(), Ref<int>.In(0), null);
             selection.visible =false;
             selection.scaleX =selection.scaleY =get_pixelScale.Invoke();
-            var pivot =selection.pivot;
+            pivot =selection.pivot;
             pivot.centerFactorX = 0;
             pivot.centerFactorY = 0;
             pivot.usingFactor = true;
@@ -205,7 +231,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             mainFlow.x = 0;
 
 
-            if (modes.Count > 0) SelectMode(modes[0]);
+            if (modes.Count > 0) SelectMode(modes[modes.Count-1]);
 
             BuildDefaultButtons();
         }
@@ -251,7 +277,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             btn.set_enableInteractive(true);
             btn.reflow();
 
-            parent.addChildAt(btn,1);
+            parent.addChildAt(btn,2);
 
             var data =new BtnData
             {
@@ -259,15 +285,29 @@ namespace DeadCellsMultiplayerX.Client.UI
                 text =text,
                 interactive =btn.interactive
             };
-            
 
-            var inter =btn.interactive;
-            if (inter != null)
+
+            if (btn.interactive != null)
             {
                 btn.interactive.width = btn.calculatedWidth;
                 btn.interactive.height = btn.calculatedHeight;
-                btn.interactive.onClick = new HlAction<dc.hxd.Event>(_ => cb());
+                btn.interactive.cursor = new Cursor.Button();
+                btn.interactive.onClick = new HlAction<dc.hxd.Event>(e => { 
+                    cb();
+                    AudioHelper.LoadAudioFormString("sfx/ui/menu_click1.wav");
+                    Point point = tapselection!.parent.globalToLocal(topbtns[curTopbts].text!.localToGlobal(null));
+                    HSprite sel = tapselection;
+                    sel.x = point.x - (int)(get_pixelScale.Invoke() * 5.0);
+                    sel.y = point.y;
+                    sel.posChanged = true;
+                });
+                btn.interactive.onOver = new(_ =>
+                {
+                    AudioHelper.LoadAudioFormString("sfx/ui/menu_click1.wav");
+                });
             }
+
+            topbtns.Add(data);
         }
 
         /// <summary>
@@ -352,20 +392,32 @@ namespace DeadCellsMultiplayerX.Client.UI
             if(controllerHelper==null)return;
             if(defaultbtns==null)return;
 
-            if (controllerHelper.IsPressed(keys[ControllerKey.Tab_Exchange_Q]))
-            {
-                curTopbts++;
-                if (curTopbts>modes.Count-1)
-                    curTopbts =0;
-                SelectMode(modes[curTopbts]);
-            }
+            if (modes.Count <= 1) return; // 提前退出，避免重复判断
 
             if (controllerHelper.IsPressed(keys[ControllerKey.Tab_Exchange_E]))
+                SwitchMode(1);
+
+            if (controllerHelper.IsPressed(keys[ControllerKey.Tab_Exchange_Q]))
+                SwitchMode(-1);
+
+
+            void SwitchMode(int step)
             {
-                curTopbts--;
-                if (curTopbts > modes.Count - 1||curTopbts<0)
-                    curTopbts = modes.Count-1;
+                if (modes.Count == 0) return;
+
+                curTopbts += step;
+
+                if (curTopbts < 0)
+                    curTopbts = modes.Count - 1;
+                else if (curTopbts >= modes.Count)
+                    curTopbts = 0;
+
                 SelectMode(modes[curTopbts]);
+
+                var btn = topbtns[curTopbts];
+                btn?.interactive?.onClick?.Invoke(null!);
+
+                logger.Information($"modes: {currentMode?.GetType().Name}");
             }
 
 
