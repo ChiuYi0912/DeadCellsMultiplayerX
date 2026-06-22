@@ -12,12 +12,14 @@ using DeadCellsMultiplayerX.Server.Events;
 using Hashlink;
 using Hashlink.Marshaling;
 using Hashlink.Proxy;
+using Hashlink.Proxy.Clousre;
 using Hashlink.Proxy.Objects;
 using Hashlink.Reflection;
 using Hashlink.Reflection.Types;
 using ModCore;
 using ModCore.Events;
 using ModCore.Events.Interfaces.Game;
+using ModCore.Modules;
 using ModCore.Utilities;
 using StbImageSharp;
 using System;
@@ -94,8 +96,11 @@ namespace DeadCellsMultiplayerX.Server
 
             Hook_TitleScreen.initTitleScreen += Hook_TitleScreen_initTitleScreen;
 
-            dc.tool.Hook__File.getSteamCloudStatus += Hook__File_getSteamCloudStatus;
-            dc.tool.Hook__File.saveSteamCloudStatus += Hook__File_saveSteamCloudStatus;
+            if (GameInfo.Platform == GameInfo.PlatformKind.Steam)
+            {
+                HashlinkHooks.Instance.CreateHook("tool.$File", "getSteamCloudStatus", Hook__File_getSteamCloudStatus);
+                HashlinkHooks.Instance.CreateHook("tool.$File", "saveSteamCloudStatus", Hook__File_saveSteamCloudStatus);
+            }
 
             Hook_Entity._isOnScreen += Hook_Entity__isOnScreen;
             Hook_Entity.setGlowColor += Hook_Entity_setGlowColor;
@@ -110,12 +115,12 @@ namespace DeadCellsMultiplayerX.Server
             EventSystem.BroadcastEvent<IOnEntityDisposed, Entity>(self);
         }
 
-        private void Hook__File_saveSteamCloudStatus(dc.tool.Hook__File.orig_saveSteamCloudStatus orig)
+        private void Hook__File_saveSteamCloudStatus(HashlinkClosure orig)
         {
            
         }
 
-        private bool? Hook__File_getSteamCloudStatus(dc.tool.Hook__File.orig_getSteamCloudStatus orig)
+        private bool? Hook__File_getSteamCloudStatus(HashlinkClosure orig)
         {
             return null;
         }

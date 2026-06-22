@@ -8,7 +8,9 @@ using DeadCellsMultiplayerX.Client.Host;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Server;
 using DeadCellsMultiplayerX.Utils;
+using Hashlink.Proxy.Clousre;
 using Microsoft.VisualStudio.Threading;
+using ModCore;
 using ModCore.Events.Interfaces.Game;
 using ModCore.Events.Interfaces.Game.Hero;
 using ModCore.Modules;
@@ -35,6 +37,7 @@ namespace DeadCellsMultiplayerX.Client.Guest
         private byte[]? saveData;
         private WorldDirector? worldDirector;
         private Task? syncTimeStampTask;
+        private readonly List<HashlinkHooks.HookHandle> hooks = [];
 
         private long lastSyncStopwatchTime = 0;
         private long prevStopwatchTime = 0;
@@ -101,8 +104,13 @@ namespace DeadCellsMultiplayerX.Client.Guest
         {
             Hook__Save.save += Hook__Save_save;
             Hook__File.getBytes += Hook__File_getBytes;
-            Hook__File.getSteamCloudStatus += Hook__File_getSteamCloudStatus;
-            Hook__File.saveSteamCloudStatus += Hook__File_saveSteamCloudStatus;
+
+            if (GameInfo.Platform == GameInfo.PlatformKind.Steam)
+            {
+                HashlinkHooks.Instance.CreateHook("tool.$File", "getSteamCloudStatus", Hook__File_getSteamCloudStatus);
+                HashlinkHooks.Instance.CreateHook("tool.$File", "saveSteamCloudStatus", Hook__File_saveSteamCloudStatus);
+            }
+
             Hook_Game.onDispose += Hook_Game_onDispose;
         }
 
@@ -116,12 +124,12 @@ namespace DeadCellsMultiplayerX.Client.Guest
             Dispose();
         }
 
-        private void Hook__File_saveSteamCloudStatus(Hook__File.orig_saveSteamCloudStatus orig)
+        private void Hook__File_saveSteamCloudStatus(HashlinkClosure orig)
         {
             
         }
 
-        private bool? Hook__File_getSteamCloudStatus(Hook__File.orig_getSteamCloudStatus orig)
+        private bool? Hook__File_getSteamCloudStatus(HashlinkClosure orig)
         {
             return null;
         }
@@ -173,8 +181,12 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
             Hook__Save.save -= Hook__Save_save;
             Hook__File.getBytes -= Hook__File_getBytes;
-            Hook__File.getSteamCloudStatus -= Hook__File_getSteamCloudStatus;
-            Hook__File.saveSteamCloudStatus -= Hook__File_saveSteamCloudStatus;
+
+            foreach(var v in hooks)
+            {
+                v.Disable();
+            }
+            hooks.Clear();
         }
 
         /// <summary>
