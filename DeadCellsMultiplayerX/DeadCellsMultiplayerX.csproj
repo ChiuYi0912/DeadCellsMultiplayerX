@@ -12,6 +12,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Platform>x64</Platform>
     <NoWarn>$(NoWarn);MSB3270</NoWarn>
+    <GenerateSinglePakFile>true</GenerateSinglePakFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -55,6 +56,10 @@
 
   <ItemGroup>
     <Folder Include="Client\Networks\Steam\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackAssets Include="Assets/**/*" RootInPak="DeadCellsMultiplayerX" />
   </ItemGroup>
 
 </Project>

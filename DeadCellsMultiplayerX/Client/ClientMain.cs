@@ -12,6 +12,7 @@ using ModCore.Utilities;
 using DeadCellsMultiplayerX.Client.UI;
 using dc;
 using ModCore.Modules;
+using DeadCellsMultiplayerX.Client.UI.ConnectionMode;
 
 namespace DeadCellsMultiplayerX.Client
 {
@@ -122,8 +123,11 @@ namespace DeadCellsMultiplayerX.Client
 
             lobby.createRootInLayers(Main.Class.ME.root, dc.Const.Class.ROOT_DP_MENU);
             lobby.controllerHelper = new(ModConfig.Config, lobby.config.ControlKeys, arg1.controller.parent);
+            lobby.fControlLabel =new dc.h2d.Flow(null);
+            lobby.setControlLabelKeys();
             lobby.onResize();
             lobby.RegisterMode(new DefaultPageUI(lobby));
+            lobby.RegisterMode(new SteamPageUI(lobby));
         }
 
         private void Hook_TitleScreen_mainMenu(

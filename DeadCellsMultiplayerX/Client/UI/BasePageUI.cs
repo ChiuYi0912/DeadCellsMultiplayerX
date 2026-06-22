@@ -3,10 +3,13 @@ using dc;
 using dc.en.mob;
 using dc.h2d;
 using dc.h2d.col;
+using dc.h3d.mat;
 using dc.hxd;
+using dc.hxd.res;
 using dc.libs.heaps.slib;
 using dc.pr;
 using dc.shader;
+using dc.tool;
 using dc.ui;
 using Hashlink.Virtuals;
 using HashlinkNET.Native.Impl;
@@ -18,22 +21,19 @@ namespace DeadCellsMultiplayerX.Client.UI
     internal abstract class BasePageUI
     {
         protected LobbyMenu Manager { get; }
+        
         protected FlowBox Flow { get; private set; } = null!;
+        public Flow Information { get; private set; } = null!;
+        public Flow Modinfo { get; set; }=null!;
+
         protected int PanelW { get; private set; }
         public string Name { get; }
-        public bool lockInter = false;
 
+
+        public Action addmenu =null!;
 
         public  List<ReleaseNotes> Notes =[];
         public List<Flow> SprVacancies =[];
-
-        /// <summary>
-        /// 左侧按钮动作
-        /// </summary>
-        public Action? BuildHost   { get; set; }
-        public Action? BuildClient { get; set; }
-
-        public Flow Information { get;private set; } =null!;
 
         protected BasePageUI(LobbyMenu manager, string menuName)
         {
@@ -46,15 +46,60 @@ namespace DeadCellsMultiplayerX.Client.UI
         {
             PanelW = panelW;
             Flow = right;
-
             Spacer(Flow);
+            var Image =Res.Class.load("DeadCellsMultiplayerX/Image/lobbyTile.png".AsHaxeString()).toTexture();
+            var tile =Tile.Class.fromTexture(Image);
+            tile.width = (int)Flow.minWidth!;
+            tile.height = (int)Flow.minHeight!;
+            var bmap =new Bitmap(tile,null);
+            Flow.addChildAt(bmap,1);
+
             BuildInformation();
-            BuildContent();
+        }
+        public abstract void AfterBuildHost();
+        public abstract void AfterBuildClient();
+
+        public abstract void BeforeBuildHost();
+        public abstract void BeforeBuildClient();
+
+        public abstract void update();
+
+        /// <summary>
+        /// 点击创建房间
+        /// </summary>
+        public void ShowHost()
+        {
+            BeforeBuildHost();
+
+            Manager.ClearContent(Flow);
+
+            var panel = new PlayerSlotPanel(Manager, Flow);
+
+            //测试
+            var testGuests = new List<GuestInfo>
+            {
+                new() { Name = "ChiuYi",   IsHost = true,  IsReady = true },
+                new() { Name = "Player2",  IsHost = false, IsReady = true },
+                new() { Name = "Player3",  IsHost = false, IsReady = false },
+                new() { Name = "Player4",  IsHost = false, IsReady = false },
+            };
+            panel.Refresh(testGuests);
+
+            
+
+            AfterBuildHost();
         }
 
-        public abstract void BuildContent();
-        public abstract void BuildLeftMenuChild();
-        public abstract void update();
+        /// <summary>
+        /// 点击加入房间
+        /// </summary>
+        public void ShowClient()
+        {
+            BeforeBuildClient();
+            Manager.ClearContent(Flow);
+            AfterBuildClient();
+        }
+
 
 
         /// <summary>
@@ -153,8 +198,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             int w = PanelW/2;
             int h = Manager.ScreenH / 4;
 
-            double padH = 0, padV = 0;
-            var container = LobbyMenu.CreateBoxLegendaryOutline(right, ref padH, ref padV);
+            var container = LobbyMenu.CreateBoxLegendaryOutline(right);
             container.set_isVertical(true);
             container.set_minWidth(w);
             container.set_maxWidth(w);
@@ -244,34 +288,20 @@ namespace DeadCellsMultiplayerX.Client.UI
             }
 
 
-            var info = LobbyMenu.CreateBoxLegendaryOutline(right, ref padH, ref padV);
-            info.set_isVertical(true);
-            info.set_minWidth(w);
-            info.set_maxWidth(w);
-            info.set_minHeight(h);
-            info.set_horizontalAlign(new FlowAlign.Middle());
-            info.reflow();
+            Modinfo = LobbyMenu.CreateBoxLegendaryOutline(right);
+            Modinfo.set_isVertical(true);
+            Modinfo.set_minWidth(w);
+            Modinfo.set_maxWidth(w);
+            Modinfo.set_minHeight(h);
+            Modinfo.set_horizontalAlign(new FlowAlign.Middle());
+            Modinfo.reflow();
 
             var mod = ModEntry.Instance.Info;
-            AddText($"Mod Information:",null, info, new FlowAlign.Middle(), 2, paddingTop: Manager.pixel(10));
-            AddText($"Mod name: {mod.Name}", null, info, new FlowAlign.Middle(), 1.5,paddingTop:Manager.pixel(10));
-            AddText("Lead author: HKLab", null, info, new FlowAlign.Middle(), 1.5, paddingTop: Manager.pixel(10));
-            AddText("Contribution: ChiuYi", null, info, new FlowAlign.Middle(), 1.5, paddingTop: Manager.pixel(10));
-            AddText($"Current version: {mod.Version}", null, info, new FlowAlign.Middle(), 1.5, paddingTop: Manager.pixel(10));
-        }
-
-        public void Menu()
-        {
-            AddMenuChild(Name, () => {
-                Manager.titleScreen.clearMenu();
-                BuildLeftMenuChild();
-            });
-
-            AddMenuChild("返回", () =>
-            {
-                Manager.titleScreen.clearMenu();
-                Manager.titleScreen.mainMenu();
-            });
+            AddText($"Mod Information:",null, Modinfo, new FlowAlign.Middle(), 2, paddingTop: Manager.pixel(10));
+            AddText($"Mod name: {mod.Name}", null, Modinfo, new FlowAlign.Middle(), 1.5,paddingTop:Manager.pixel(10));
+            AddText("Lead author: HKLab", null, Modinfo, new FlowAlign.Middle(), 1.5, paddingTop: Manager.pixel(10));
+            AddText("Contribution: ChiuYi", null, Modinfo, new FlowAlign.Middle(), 1.5, paddingTop: Manager.pixel(10));
+            AddText($"Current version: {mod.Version}", null, Modinfo, new FlowAlign.Middle(), 1.5, paddingTop: Manager.pixel(10));
         }
 
 
@@ -397,67 +427,17 @@ namespace DeadCellsMultiplayerX.Client.UI
                 Manager.lockInter=false;
             });
             btn.interactive.onCheck=new((_)=>updateHSprite(sel));
+
+
+            void updateHSprite(HSprite spr)
+            {
+                double? v = ((HaxeProxyBase)Data.Class.gui.byId.get("co_blinkCursorSpeed".AsHaxeString())).ToVirtual<virtual_biome_color_comment_id_v0_>().v0;
+                if (v == null) return;
+                double cos = Lib_std.math_cos.Invoke((double)(Manager.ftime * 0.1 * v!));
+                spr.alpha = 0.8 + 0.2 * cos;
+            }
         }
 
-        private void updateHSprite(HSprite spr)
-        {
-            double? v = ((HaxeProxyBase)Data.Class.gui.byId.get("co_blinkCursorSpeed".AsHaxeString())).ToVirtual<virtual_biome_color_comment_id_v0_>().v0;
-            if(v==null)return;
-            double cos = Lib_std.math_cos.Invoke((double)(Manager.ftime *0.1* v!));
-            spr.alpha = 0.8 + 0.2 * cos;
-        }
-
-
-        public Flow PlayerVacancies(Flow flow)
-        {
-            var spritesflow = new Flow(flow);
-            spritesflow.set_verticalAlign(new FlowAlign.Middle());
-            spritesflow.set_horizontalAlign(new FlowAlign.Middle());
-            spritesflow.isVertical = true;
-            spritesflow.set_minWidth(Flow.minWidth/4);
-            return spritesflow;
-        }
-
-        public HSprite AddHeroSpr(Flow flow,string sprmuld = "Tick4")
-        {
-            dc.String idle = "idle".AsHaxeString();
-            SpriteLib g = Assets.Class.getHeroLib(Cdb.Class.getSkinInfo(sprmuld.AsHaxeString()));
-            var spriteui = new HSprite(g, idle, Ref<int>.Null, null);
-            spriteui.scaleX =spriteui.scaleY=2.0;
-            initColorMap(sprmuld,spriteui);
-
-            AnimManager animManager = spriteui.get_anim().play(idle, null, null).loop(null);
-            animManager.genSpeed = 0.4;
-
-            spriteui.set_visible(true);
-            flow.addChild(spriteui);
-            flow.reflow();
-
-            return spriteui;
-        }
-
-        private void initColorMap(string colorMap, HSprite spriteui)
-        {
-            ColorMap shader = (ColorMap)spriteui!.getShader(ColorMap.Class);
-            if (shader != null)
-                spriteui.removeShader(shader);
-            
-
-            var texture = Res.Class.load("atlas/beheaded_aladdin_s.png".AsHaxeString()).toTexture();
-            texture.set_filter(new dc.h3d.mat.Filter.Nearest());
-
-            var skinInfo = ((HaxeProxyBase)Cdb.Class.getSkinInfo(colorMap.AsHaxeString())).ToVirtual<virtual_colorMap_consoleCmdId_glowData_group_head_incompatibleHeads_item_model_onlyDefaultHead_scarfBlendMode_scarfs_>();
-            spriteui.addShader(new ColorMap(Assets.Class.getHeroColorMap(skinInfo)));
-
-
-            // DirLighted s2 = new DirLighted();
-            // s2 = (DirLighted)spriteui.addShader(s2);
-
-
-            // var normalMapFromGroup = spriteui.lib.getNormalMapFromSprite(spriteui);
-            // NormalMap normal = new NormalMap(normalMapFromGroup);
-            // spriteui.addShader(normal);
-        }
 
         /// <summary>
         /// 构建完成后调用一次 reflow
@@ -467,18 +447,6 @@ namespace DeadCellsMultiplayerX.Client.UI
             Flow.reflow();
         }
 
-        public virtual_cb_help_inter_isEnable_t_<bool> AddMenuChild(
-            string text, HlAction cb, string? help = null, bool? isEnable = null, int color = 0xFFFFFF)
-        {
-            var label = TitleScreen.Class.ME.addMenu(text.AsHaxeString(), cb,
-                help?.AsHaxeString(), isEnable, Ref<int>.From(ref color));
-            var onMove = label.inter.onMove;
-            label.inter.onMove=new HlAction<dc.hxd.Event>((e) =>
-            {
-                if(lockInter)return;
-                onMove.Invoke(e);
-            });
-            return label;
-        }
+
     }
 }
