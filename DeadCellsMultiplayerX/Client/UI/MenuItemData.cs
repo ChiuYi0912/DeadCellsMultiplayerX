@@ -58,4 +58,23 @@ namespace DeadCellsMultiplayerX.Client.UI
 
         Settings
     }
+
+    public enum ControllerKey
+    {
+        Default_UP,
+        Default_DOWN,
+        Default_Left,
+        Default_Rigth,
+        Tab_Exchange_Q,
+        Tab_Exchange_E
+    }
+
+
+    public record class BtnData
+    {
+        public Flow? Flow { get ; set; }
+        public dc.ui.Text? text { get; set; }
+        public Interactive? interactive { get; set; }
+        public bool LoadAuido { get; set; }=false;
+    }
 }
