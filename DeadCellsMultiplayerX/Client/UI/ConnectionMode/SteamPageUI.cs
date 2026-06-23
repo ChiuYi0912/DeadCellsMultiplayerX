@@ -1,39 +1,21 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using dc.ui;
 
-namespace DeadCellsMultiplayerX.Client.UI.ConnectionMode
+namespace DeadCellsMultiplayerX.Client.UI.Modes
 {
-    internal class SteamPageUI : BasePageUI
+    internal class SteamMode : ModeConfig
     {
-        public SteamPageUI(LobbyMenu manager) : base(manager, "SteamP2P")
+        public SteamMode(LobbyMenu manager) : base(manager, "SteamP2P") { }
+
+        public override void BuildContent(FlowBox right, int panelW)
         {
-            addmenu=new Action(()=>{});
-        }
-        public override void AfterBuildClient()
-        {
-            
+            Manager.LoadImageTorightFlow("DeadCellsMultiplayerX/Image/lobbyTile_2.png");
         }
 
-        public override void AfterBuildHost()
+        public override void OnHost()
         {
             
         }
-
-        public override void BeforeBuildClient()
-        {
-            
-        }
-
-        public override void BeforeBuildHost()
-        {
-            
-        }
-
-        public override void update()
-        {
-            
-        }
+        public override void OnClient() { }
+        public override void Update()   { }
     }
 }

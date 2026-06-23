@@ -1,37 +1,23 @@
-namespace DeadCellsMultiplayerX.Client.UI.ConnectionMode
+using dc.ui;
+
+namespace DeadCellsMultiplayerX.Client.UI.Modes
 {
-    internal class DefaultPageUI : BasePageUI
+    internal class DefaultMode : ModeConfig
     {
-        public DefaultPageUI(LobbyMenu manager) : base(manager, "默认联机")
+        public DefaultMode(LobbyMenu manager) : base(manager, "默认联机") { }
+
+        public override void BuildContent(FlowBox right, int panelW)
         {
-            //添加其他按键.使用manager.BuildLeftBtn
-            addmenu = new(() =>
-            {
-                //manager.
-            });
+            Manager.LoadImageTorightFlow("DeadCellsMultiplayerX/Image/lobbyTile.png");
         }
 
-        public override void AfterBuildClient()
+        public override void OnHost()
         {
+            Test.Start();
+            logger.Information("正在创建房间");
             
         }
-
-        public override void AfterBuildHost()
-        {
-           
-        }
-
-        public override void BeforeBuildClient()
-        {
-            
-        }
-
-        public override void BeforeBuildHost()
-        {
-            
-        }
-
-
-        public override void update() { }
+        public override void OnClient() { }
+        public override void Update()   { }
     }
 }

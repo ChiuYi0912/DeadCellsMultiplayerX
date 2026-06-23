@@ -12,7 +12,7 @@ using ModCore.Utilities;
 using DeadCellsMultiplayerX.Client.UI;
 using dc;
 using ModCore.Modules;
-using DeadCellsMultiplayerX.Client.UI.ConnectionMode;
+using DeadCellsMultiplayerX.Client.UI.Modes;
 
 namespace DeadCellsMultiplayerX.Client
 {
@@ -40,7 +40,10 @@ namespace DeadCellsMultiplayerX.Client
 
             Hook_TitleScreen.mainMenu += Hook_TitleScreen_mainMenu;
             Hook__TitleScreen.__constructor__ += Hook__TitleScreen__constructor__;
+            Hook_TitleScreen.onDispose += ( orig, self ) => lobby?.destroy();
         }
+
+
 
         private void Hook_GlowKey_applyGlowData(Hook_GlowKey.orig_applyGlowData orig, GlowKey self, 
             int i, Hashlink.Virtuals.virtual_animationIntensity_animationScale_animationSpeed_animationTextureMask_inner_key_outer_power_ glowData)
@@ -126,8 +129,8 @@ namespace DeadCellsMultiplayerX.Client
             lobby.fControlLabel =new dc.h2d.Flow(null);
             lobby.setControlLabelKeys();
             lobby.onResize();
-            lobby.RegisterMode(new DefaultPageUI(lobby));
-            lobby.RegisterMode(new SteamPageUI(lobby));
+            lobby.RegisterMode(new DefaultMode(lobby));
+            lobby.RegisterMode(new SteamMode(lobby));
 
             if(lobby.curTopbts > lobby.modes.Count - 1 || lobby.curTopbts < 0)
                 lobby.curTopbts = 0;

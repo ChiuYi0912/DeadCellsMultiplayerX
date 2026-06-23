@@ -58,6 +58,11 @@ namespace DeadCellsMultiplayerX.Client
         /// <summary>
         /// 是否已连接服务器
         /// </summary>
-        public bool IsConnectedServer { get; set; } = false; 
+        public bool IsConnectedServer { get; set; } = false;
+
+        /// <summary>
+        /// 玩家皮肤
+        /// </summary>
+        public string SkinMould { get; set; } = "Tick4";
     }
 }
