@@ -1,32 +1,32 @@
 using dc;
 using dc.h2d;
-using dc.h3d;
-using dc.hxd;
-using dc.hxsl;
 using dc.libs.heaps.slib;
-using dc.shader;
-using Hashlink.Virtuals;
 using HaxeProxy.Runtime;
 using ModCore.Utilities;
-using Serilog.Core;
+using Serilog;
 
 namespace DeadCellsMultiplayerX.Client.UI
 {
     public class PlayerSlotUI
     {
-        public Flow      Container  { get; }
-        public HSprite?  HeroSprite { get; private set; }
-        public dc.ui.Text? NameLabel  { get; private set; }
+        public Flow Container   { get; }
+        public Flow? emptybox { get; set; }
+        public HSprite?  HeroSprite  { get; private set; }
+        public dc.ui.Text? NameLabel   { get; private set; }
         public dc.ui.Text? StatusLabel { get; private set; }
-        public GuestInfo? Guest      { get; private set; }
+        public GuestInfo?  Guest       { get; private set; }
+        public bool IsOccupied  => Guest != null;
 
-        public bool IsOccupied => Guest != null;
+        private readonly ILogger logger;
 
-        private readonly LobbyMenu _mgr;
+        /// <summary>
+        /// 玩家状态变更时触发
+        /// </summary>
+        public event Action<PlayerSlotUI>? OnChanged;
 
-        internal PlayerSlotUI(LobbyMenu mgr, Flow parent)
+        internal PlayerSlotUI(Flow parent)
         {
-            _mgr = mgr;
+            logger = Log.ForContext(GetType());
 
             Container = new Flow(parent) { isVertical = true };
             Container.set_minWidth(parent.minWidth / 4);
@@ -36,81 +36,63 @@ namespace DeadCellsMultiplayerX.Client.UI
             ShowEmpty();
         }
 
-        public void Bind(GuestInfo guest, string skinMould = "Tick4")
+    
+        public void Bind(GuestInfo guest)
         {
+            if (Guest?.Guid == guest.Guid)
+            {
+                Guest = guest;
+                if (NameLabel != null)
+                    NameLabel.set_text(guest.Name.AsHaxeString());
+                RefreshStatus();
+                return;
+            }
+
+            // 新玩家
             Guest = guest;
             ClearContent();
-            var skinInfo = Cdb.Class.getSkinInfo(skinMould.AsHaxeString()).ToVirtual<virtual_colorMap_consoleCmdId_glowData_group_head_incompatibleHeads_item_model_onlyDefaultHead_scarfBlendMode_scarfs_>();
 
-            var idle = "idle".AsHaxeString();
-            var lib  = Assets.Class.getHeroLib(Cdb.Class.getSkinInfo(skinMould.AsHaxeString()));
-            HeroSprite = new HSprite(lib, idle, Ref<int>.Null, null)
+            if (emptybox != null)
             {
-                scaleX = 2.0,
-                scaleY = 2.0,
-            };
-            var anim = HeroSprite.get_anim().play(idle, null, null)?.loop(null);
-            if (anim != null) anim.genSpeed = 0.4;
-            HeroSprite.set_visible(true);
-            Container.addChild(HeroSprite);
+                emptybox.removeChildren();
+                emptybox.remove();
+                emptybox = null;
+            }
 
-            NameLabel = Assets.Class.makeText(
-                guest.Name.AsHaxeString(), 0xDDDDDD, null, Container);
+            HeroSprite = UIRenderer.CreateHeroSpr(guest.SkinMould, Container);
+
+            NameLabel = Assets.Class.makeText(guest.Name.AsHaxeString(), 0xDDDDDD, null, Container);
             NameLabel.scaleX = NameLabel.scaleY = 1.2;
 
-            string status = guest.IsHost  ? "[Host]"  :
-                            guest.IsReady ? "[Ready]" : "[...]";
-            int sc = guest.IsHost  ? 0xFFDD44 :
-                     guest.IsReady ? 0x44FF44 : 0x888888;
-            StatusLabel = Assets.Class.makeText(
-                status.AsHaxeString(), sc, null, Container);
+            StatusLabel = Assets.Class.makeText("".AsHaxeString(), null, null, Container);
             StatusLabel.scaleX = StatusLabel.scaleY = 1.0;
 
-
-            Res.Class.load("atlas/beheaded_aladdin_s.png".AsHaxeString()).toTexture().set_filter(new dc.h3d.mat.Filter.Nearest());
-
-            
-            HeroSprite.addShader(new ColorMap(Assets.Class.getHeroColorMap(skinInfo)));
-            var scene =_mgr.root.getScene();
-            var light = new DirLighted();
-            var colorMap = new NormalMap(HeroSprite.lib.getNormalMapFromSprite(HeroSprite));
-
-            int shadowId = -1;
-            int dirId = -1;
-
-            var g = light.shader.globals;
-            var globals = scene.ctx.manager.globals;
-            for (int i = 0; i < g.length; i++)
-            {
-                ShaderGlobal c = g.getDyn(i);
-
-                var name = c.v.name.ToString();
-                var parent =c.v.parent.name.ToString();
-
-                if (name == "shadowColor" && parent == "light")
-                    shadowId = c.globalId;
-
-                if (name == "dirVec" && parent == "light")
-                    dirId = c.globalId;
-
-                if(shadowId!=-1&&dirId!=-1)break;
-            }
-            globals.map.set(shadowId, new Vector(Ref<double>.In(1), Ref<double>.In(1), Ref<double>.In(1), Ref<double>.In(1))); // shadowColor
-            globals.map.set(dirId, new Vector(Ref<double>.In(0), Ref<double>.In(0), Ref<double>.In(1), Ref<double>.In(1))); // dirVec
-
-            HeroSprite.addShader(colorMap);
-            HeroSprite.addShader(light);
-            
-
             Container.reflow();
+            RefreshStatus();
+            OnChanged?.Invoke(this);
+        }
+
+        public void RefreshStatus()
+        {
+            if (Guest == null || StatusLabel == null) return;
+
+            string status = Guest.IsHost  ? "[Host]"  :
+                            Guest.IsReady ? "[Ready]" : "[...]";
+            int sc = Guest.IsHost  ? 0xFFDD44 :
+                     Guest.IsReady ? 0x44FF44 : 0x888888;
+
+            StatusLabel.set_text(status.AsHaxeString());
+            StatusLabel.set_textColor(sc);
         }
 
         public void Clear()
         {
+            if (Guest == null) return;
             Guest = null;
             ClearContent();
             ShowEmpty();
             Container.reflow();
+            OnChanged?.Invoke(this);
         }
 
         private void ClearContent()
@@ -122,47 +104,70 @@ namespace DeadCellsMultiplayerX.Client.UI
 
         private void ShowEmpty()
         {
-            var empty = Assets.Class.makeText(
-                "[Empty]".AsHaxeString(), 0x666666, null, Container);
+            emptybox =new Flow(Container);
+            var empty = Assets.Class.makeText("[Empty]".AsHaxeString(), 0x666666, null, emptybox);
             empty.scaleX = empty.scaleY = 1.0;
         }
     }
 
+
     internal class PlayerSlotPanel
     {
-        public Flow            Container { get; }
-        public PlayerSlotUI[]  Slots     { get; }
+        public Flow           Container { get; }
+        public PlayerSlotUI[] Slots     { get; }
 
-        public PlayerSlotPanel(LobbyMenu mgr, Flow parent)
+        private readonly ILogger logger;
+
+        public PlayerSlotPanel(Flow parent)
         {
+            logger = Log.ForContext(GetType());
+
             Container = new Flow(parent) { isVertical = false };
             Container.set_verticalAlign(new FlowAlign.Middle());
             Container.set_horizontalAlign(new FlowAlign.Middle());
 
             Slots = new PlayerSlotUI[4];
             for (int i = 0; i < 4; i++)
-                Slots[i] = new PlayerSlotUI(mgr, Container);
+            {
+                Slots[i] = new PlayerSlotUI(Container);
+                Slots[i].OnChanged += OnSlotChanged;
+            }
 
             Container.reflow();
         }
 
-
-        public void Refresh(System.Collections.Generic.IEnumerable<GuestInfo> guests)
+        
+        public void Refresh(IEnumerable<GuestInfo> guests)
         {
-            int i = 0;
-            foreach (var g in guests)
+            var guestList = guests.Take(4).ToList();
+
+            for (int i = 0; i < 4; i++)
             {
-                if (i >= 4) break;
-                Slots[i].Bind(g);
-                i++;
+                if (Slots[i].Guest != null && !guestList.Any(g => g.Guid == Slots[i].Guest!.Guid))
+                    Slots[i].Clear();
             }
-            for (; i < 4; i++)
-                Slots[i].Clear();
+
+            for (int i = 0; i < guestList.Count; i++)
+                Slots[i].Bind(guestList[i]);
+        }
+
+        /// <summary>
+        /// 刷新所有已占用卡槽
+        /// </summary>
+        public void RefreshStatuses()
+        {
+            foreach (var s in Slots)
+                s.RefreshStatus();
         }
 
         public void ClearAll()
         {
             foreach (var s in Slots) s.Clear();
+        }
+
+        private void OnSlotChanged(PlayerSlotUI slot)
+        {
+            logger.Information("Slot changed: {Name}", slot.Guest?.Name ?? "(empty)");
         }
     }
 }
