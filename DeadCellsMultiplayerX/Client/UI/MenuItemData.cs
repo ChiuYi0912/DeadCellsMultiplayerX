@@ -75,6 +75,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         public Flow? Flow { get; set; }
         public dc.ui.Text? text { get; set; }
         public Interactive? interactive { get; set; }
+        public Action? OnReszie { get; set; }
         public bool LoadAuido { get; set; } = false;
     }
 }

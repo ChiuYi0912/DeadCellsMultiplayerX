@@ -38,7 +38,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         }
 
 
-        public void Bind(GuestInfo guest)
+        public void Bind (GuestInfo guest)
         {
             if (Guest?.Guid == guest.Guid)
             {

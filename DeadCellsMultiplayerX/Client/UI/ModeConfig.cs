@@ -29,7 +29,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         /// <summary>
         /// 点击"加入房间"调用
         /// </summary>
-        public abstract void OnClient(Action onend);
+        public abstract void OnClient(Action<bool> canEnter);
 
         /// <summary>
         /// 房主离开房间
