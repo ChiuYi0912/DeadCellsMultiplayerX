@@ -10,11 +10,11 @@ namespace DeadCellsMultiplayerX
         private static bool started = false;
         public static async void Start()
         {
-            if(started)
-            {
-                return;
-            }
-            started = true;
+            // if(started)
+            // {
+            //     return;
+            // }
+            // started = true;
 
             await ClientMain.Instance.StartHost("127.0.0.1", 12345);
 
@@ -23,7 +23,7 @@ namespace DeadCellsMultiplayerX
 
             await Task.Delay(500);
 
-            await ClientMain.Instance.CurrentHostClient!.StartGame();
+            //await ClientMain.Instance.CurrentHostClient!.StartGame();
         }
     }
 }
