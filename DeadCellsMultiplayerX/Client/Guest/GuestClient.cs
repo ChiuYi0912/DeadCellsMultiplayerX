@@ -1,4 +1,6 @@
-﻿using DeadCellsMultiplayerX.Client.Host;
+﻿using dc;
+using dc.tool;
+using DeadCellsMultiplayerX.Client.Host;
 using DeadCellsMultiplayerX.Client.Networks;
 using DeadCellsMultiplayerX.Utils;
 using Microsoft.VisualStudio.Threading;
@@ -45,6 +47,7 @@ namespace DeadCellsMultiplayerX.Client.Guest
             Guid = await hostInterfact.GetGUID();
 
             SetName(name);
+            SetSkinMould(Save.Class.tryLoad().heroSkin.ToString());
             SetReady(false);
 
             LobbyInfo = await hostInterfact.GetLobbyInfo();
@@ -103,6 +106,13 @@ namespace DeadCellsMultiplayerX.Client.Guest
             Debug.Assert(hostInterfact != null);
 
             hostInterfact.SetReady(ready);
+        }
+
+        public void SetSkinMould(string skinMould)
+        {
+            Debug.Assert(hostInterfact != null);
+
+            hostInterfact.SetSkinMould(skinMould);
         }
 
         public void Quit()

@@ -36,8 +36,12 @@ namespace DeadCellsMultiplayerX.Client.Host
         /// <summary>
         /// 设置是否准备好开始游戏
         /// </summary>
-        /// <param name="ready"></param>
         public void SetReady(bool ready);
+
+        /// <summary>
+        /// 设置玩家皮肤
+        /// </summary>
+        public void SetSkinMould(string skinMould);
 
         public Task<Stream> GetServerStream();
     }

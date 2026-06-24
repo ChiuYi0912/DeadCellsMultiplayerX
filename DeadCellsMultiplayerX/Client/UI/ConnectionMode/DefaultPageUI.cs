@@ -1,4 +1,6 @@
+using dc;
 using dc.ui;
+using HaxeProxy.Runtime;
 
 namespace DeadCellsMultiplayerX.Client.UI.Modes
 {
@@ -11,13 +13,28 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
             Manager.LoadImageTorightFlow("DeadCellsMultiplayerX/Image/lobbyTile.png");
         }
 
-        public override void OnHost()
+        public async override void OnHost(Action onend)
         {
-            Test.Start();
-            logger.Information("正在创建房间");
+            Manager.LoaddingIn("正在创建房间...", async () =>
+            {
+                await ClientMain.Instance.StartHost("127.0.0.1", 12345);
+                ClientMain.Instance.CurrentGuestClient!.SetReady(true);
+            });
+            Manager.delayer.addMs(null,()=>{ Manager.LoaddingOut(); onend();},5*1000);
             
         }
-        public override void OnClient() { }
-        public override void Update()   { }
+        public override void OnClient(Action onend) { }
+        public override void Update()  { }
+
+        public override void OnHostLeave()
+        {
+            Manager.client.CurrentHostClient?.Dispose();
+        }
+
+        public override void OnClientLeave()
+        {
+            Manager.client.CurrentGuestClient?.Quit();
+        }
+
     }
 }

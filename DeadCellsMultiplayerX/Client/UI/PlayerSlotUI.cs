@@ -1,6 +1,7 @@
 using dc;
 using dc.h2d;
 using dc.libs.heaps.slib;
+using dc.tool;
 using HaxeProxy.Runtime;
 using ModCore.Utilities;
 using Serilog;
@@ -59,7 +60,8 @@ namespace DeadCellsMultiplayerX.Client.UI
                 emptybox = null;
             }
 
-            HeroSprite = UIRenderer.CreateHeroSpr(guest.SkinMould, Container);
+            string skin = guest.IsHost ? Save.Class.tryLoad().heroSkin.ToString() :guest.SkinMould;
+            HeroSprite = UIRenderer.CreateHeroSpr(skin, Container);
 
             NameLabel = Assets.Class.makeText(guest.Name.AsHaxeString(), 0xDDDDDD, null, Container);
             NameLabel.scaleX = NameLabel.scaleY = 1.2;
@@ -122,7 +124,9 @@ namespace DeadCellsMultiplayerX.Client.UI
         {
             logger = Log.ForContext(GetType());
 
-            Container = new Flow(parent) { isVertical = false };
+            Container = new Flow(null) { isVertical = false };
+            parent.addChild(Container);
+            Container.set_minWidth(parent.minWidth);
             Container.set_verticalAlign(new FlowAlign.Middle());
             Container.set_horizontalAlign(new FlowAlign.Middle());
 

@@ -11,11 +11,10 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
             Manager.LoadImageTorightFlow("DeadCellsMultiplayerX/Image/lobbyTile_2.png");
         }
 
-        public override void OnHost()
-        {
-            
-        }
-        public override void OnClient() { }
-        public override void Update()   { }
+        public override void OnHost(Action onend) { }
+        public override void OnClient(Action onend) { }
+        public override void Update(){ }
+        public override void OnHostLeave(){ }
+        public override void OnClientLeave(){ }
     }
 }

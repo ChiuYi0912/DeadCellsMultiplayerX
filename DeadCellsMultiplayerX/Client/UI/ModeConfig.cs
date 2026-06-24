@@ -1,12 +1,15 @@
+using dc;
 using dc.ui;
+using ModCore.Utilities;
 using Serilog;
 
 namespace DeadCellsMultiplayerX.Client.UI
 {
     internal abstract class ModeConfig
     {
-        protected LobbyMenu Manager { get; }
         public string Name { get; }
+
+        protected LobbyMenu Manager { get; }
         public readonly ILogger logger;
 
         protected ModeConfig(LobbyMenu manager, string menuName)
@@ -21,12 +24,23 @@ namespace DeadCellsMultiplayerX.Client.UI
         /// <summary>
         /// 点击"创建房间"调用
         /// </summary>
-        public abstract void OnHost();
+        public abstract void OnHost(Action onend);
 
         /// <summary>
         /// 点击"加入房间"调用
         /// </summary>
-        public abstract void OnClient();
+        public abstract void OnClient(Action onend);
+
+        /// <summary>
+        /// 房主离开房间
+        /// </summary>
+        public abstract void OnHostLeave();
+
+        /// <summary>
+        /// 玩家离开房间
+        /// </summary>
+        public abstract void OnClientLeave();
+
 
         public abstract void Update();
 
@@ -34,5 +48,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         /// 向左侧菜单添加按钮
         /// </summary>
         public virtual void BuildMenu() { }
+
+        
     }
 }

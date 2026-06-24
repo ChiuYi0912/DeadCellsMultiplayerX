@@ -23,10 +23,10 @@ namespace DeadCellsMultiplayerX.Client.UI
 {
     internal class LobbyMenu : dc.ui.Process
     {
-        private readonly ClientMain client;
+        public readonly ClientMain client;
         private readonly ILogger logger;
         private ModeConfig? currentMode;
-        private PlayerSlotPanel? playerPanel;
+        public PlayerSlotPanel? playerPanel;
         public ModConfig config = null!;
         public TitleScreen titleScreen { get; private set; } = null!;
         public ControllerHelperSuper<ModConfig> controllerHelper = null!;
@@ -38,12 +38,12 @@ namespace DeadCellsMultiplayerX.Client.UI
 
 
         private readonly Dictionary<ControllerKey,int> keys =[];    // 按键act
+        public readonly Dictionary<Flow,(Loading,Mask)> loadingFlow =[];
 
 
-        public Action? OnplayerPanelBtn;
-
+        public Action? onResizeAllloadingFlow;
         // 布局
-        private FlowBox? mainFlow;
+        public FlowBox? mainFlow;
         internal FlowBox? rightFlow;
         private Flow? tabFlow;
         public Flow? leftFlow;
@@ -59,7 +59,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         internal int PanelW { get; private set; }
         public bool lockInter { get ; set; }
         private int frameCounter { get; set; }
-        public bool _isHost { get; private set; }
+        public bool isHost { get; private set; }
         public int curTopbts
         {
             get => config.currentMode;
@@ -98,8 +98,26 @@ namespace DeadCellsMultiplayerX.Client.UI
         public void Show()
         {
             setControlLabel();
+            Hide();
             BuildUI();
             BuildInformation();
+
+            onResizeAllloadingFlow = () =>
+            {
+                foreach (var item in loadingFlow)
+                {
+                    var load = item.Value.Item1;
+                    var mask = item.Value.Item2;
+                    var flow = item.Key;
+
+                    flow.addChild(mask);
+
+                    mask.width =flow.minWidth ?? flow.borderWidth;
+                    mask.height = flow.minHeight ?? flow.borderHeight;
+
+                    load.onResize(mask.width, mask.height);
+                }
+            };
 
             titleScreen.controller.manualLock = true;
             titleScreen.blur(default, default);
@@ -110,6 +128,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             mainFlow?.remove(); mainFlow = null;
             tabFlow = null; leftFlow = null; rightFlow = null;
             currentMode = null;
+            loadingFlow.Clear();
             titleScreen.controller.manualLock = false;
             titleScreen.unblur();
         }
@@ -136,23 +155,30 @@ namespace DeadCellsMultiplayerX.Client.UI
         
         public void ShowHost(ModeConfig mode)
         {
-            mode.OnHost();
-            logger.Information($"modetype:{mode.GetType().Name}");
-            RefreshFlow(true);
-            AddHostButtons();
+            mode.OnHost(() =>
+            {
+                logger.Information($"modetype:{mode.GetType().Name}");
+                RefreshFlow(true);
+                AddHostButtons();
+            });
+            
         }
 
         public void ShowClient(ModeConfig mode)
         {
-            mode.OnClient();
-            RefreshFlow(false);
-            AddClientButtons();
+            mode.OnClient(() =>
+            {
+                RefreshFlow(false);
+                AddClientButtons();
+            });
+            
+            
         }
 
         public void RefreshFlow(bool ishost)
         {
             if (rightFlow == null || leftFlow == null) return;
-            _isHost = ishost;
+            this.isHost = ishost;
 
             ClearContent(rightFlow);
             ClearContent(leftFlow!);
@@ -163,8 +189,6 @@ namespace DeadCellsMultiplayerX.Client.UI
             rightFlow.reflow();
             leftFlow.reflow();
             btns.Clear();
-            
-            OnplayerPanelBtn = null;
         }
 
         #region LeftButton
@@ -187,9 +211,11 @@ namespace DeadCellsMultiplayerX.Client.UI
                 if (hc == null || !hc.CanStartGame) return;
                 await hc.StartGame();
             });
-            BuildLeftBtn(T("return"), ()=>
+            BuildLeftBtn(T("return")+T("并销毁房间"), ()=>
             {
+                currentMode?.OnHostLeave();
                 RefreshUI();
+                
             });
         }
 
@@ -204,8 +230,9 @@ namespace DeadCellsMultiplayerX.Client.UI
                 gc.SetReady(!me.IsReady);
                 RefreshLobbySlots();
             });
-            BuildLeftBtn(T("return"), () => 
+            BuildLeftBtn(T("return")+T("并离开房间"), () => 
             {
+                currentMode?.OnClientLeave();
                 RefreshUI();
             });
         }
@@ -214,7 +241,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         {
             if (playerPanel == null) return;
 
-            var lobby = _isHost
+            var lobby = isHost
                 ? client.CurrentHostClient?.LobbyInfo
                 : client.CurrentGuestClient?.LobbyInfo;
 
@@ -231,6 +258,8 @@ namespace DeadCellsMultiplayerX.Client.UI
         public override void update()
         {
             base.update();
+
+            currentMode?.Update();
 
             // 每15帧刷新一次玩家卡槽
             if (playerPanel != null && frameCounter++ % 15 == 0)
@@ -479,6 +508,7 @@ namespace DeadCellsMultiplayerX.Client.UI
                 fControlLabel.reflow();
                 rightFlowMain!.addChild(fControlLabel);
             }
+
         }
 
         private void BuildInformation()
@@ -642,16 +672,20 @@ namespace DeadCellsMultiplayerX.Client.UI
                 btn.interactive.width = btn.calculatedWidth;
                 btn.interactive.height = btn.calculatedHeight;
                 btn.interactive.cursor = new Cursor.Button();
-                btn.interactive.onClick = new HlAction<dc.hxd.Event>(e => { cb(); AudioHelper.LoadAudioFormString("sfx/ui/menu_select.wav"); });
+                btn.interactive.onClick = new HlAction<dc.hxd.Event>(e => 
+                {
+                    if (lockInter) return;
+                    cb(); AudioHelper.LoadAudioFormString("sfx/ui/menu_select.wav"); 
+                });
                 btn.interactive.onOver = new(e =>
                 {
-
+                    if(lockInter) return;
                     AudioHelper.LoadAudioFormString("sfx/ui/menu_click1.wav");
 
                 });
                 btn.interactive.onMove = new(e =>
                 {
-                    if (selection == null) return;
+                    if (selection == null || lockInter) return;
 
                     selection.visible = true;
                     Point point = selection.parent.globalToLocal(text.localToGlobal(null));
@@ -703,6 +737,7 @@ namespace DeadCellsMultiplayerX.Client.UI
                 btn.interactive.cursor = new Cursor.Button();
                 btn.interactive.onClick = new HlAction<dc.hxd.Event>(e =>
                 {
+                    if(lockInter) return;
                     cb();
                     AudioHelper.LoadAudioFormString("sfx/ui/menu_click1.wav");
                     Point point = tapselection!.parent.globalToLocal(topbtns[curTopbts].text!.localToGlobal(null));
@@ -713,6 +748,7 @@ namespace DeadCellsMultiplayerX.Client.UI
                 });
                 btn.interactive.onOver = new(_ =>
                 {
+                    if (lockInter) return;
                     AudioHelper.LoadAudioFormString("sfx/ui/menu_click1.wav");
                 });
             }
@@ -865,7 +901,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         public string T(string str) => GetText.Instance.GetString(str);
         public dc.String HT(string str) => GetText.Instance.GetString(str).AsHaxeString();
 
-        public static FlowBox CreateBoxLegendaryOutline(dc.h2d.Object? p, bool boxspr = true)
+        public  FlowBox CreateBoxLegendaryOutline(dc.h2d.Object? p, bool boxspr = true)
         {
             FlowBox flowBox = FlowBox.Class.createBoxValidation(p, default, default, Ref<bool>.In(true), null);
 
@@ -878,7 +914,58 @@ namespace DeadCellsMultiplayerX.Client.UI
 
             flowBox.box.sg.onParentChanged();
 
+            var mask =new Mask((int)flowBox.realMaxWidth, (int)flowBox.realMaxHeight, flowBox);
+            flowBox.getProperties(mask).set_isAbsolute(true);
+            var loadingobj =new Loading(mask);
+            loadingobj.bgMask.set_visible(false);
+            loadingobj.onResize(mask.width,mask.height);
+            mask.set_visible(false);
+
+            loadingFlow.Add(flowBox, (loadingobj,mask));
+            
+
             return flowBox;
+        }
+
+        public void LoaddingIn(string text, HlAction onend, double s =0.5)
+        {
+            onResizeAllloadingFlow?.Invoke();
+
+            var mainflow = mainFlow;
+            var item = loadingFlow[mainflow!];
+            var loading = item.Item1;
+            var mask = item.Item2;
+
+            if (loading.text != null)
+                loading.remove();
+
+            loading.text = Assets.Class.makeMedievalText.Invoke(text.AsHaxeString(), null, loading.loadingFlow, null);
+            loading.onResize(ScreenW, ScreenH);
+
+            lockInter = true;
+
+            mask.alpha = 0;
+            mask.set_visible(true);
+            loading.bgMask.set_visible(true);
+
+            var animin =CreateTween(() => mask.alpha, (v) => mask.alpha = v, 1.0, s);
+            animin.end(onend);
+        }
+
+        public void LoaddingOut(double s =1.0)
+        {
+            var mainflow = mainFlow;
+            var item = loadingFlow[mainflow!];
+            var loading = item.Item1;
+            var mask = item.Item2;
+
+            var animout = CreateTween(() => mask.alpha, (v) => mask.alpha = v, 0, s);
+            animout.onEnd += () =>
+            {
+                loading.hideContent();
+                mask.set_visible(false);
+                lockInter = false;
+            };
         }
 
         public virtual_cb_help_inter_isEnable_t_<bool> BuildMenuChild(
@@ -886,6 +973,12 @@ namespace DeadCellsMultiplayerX.Client.UI
         {
             return TitleScreen.Class.ME.addMenu(text.AsHaxeString(), cb,
                 help?.AsHaxeString(), isEnable, Ref<int>.From(ref color));
+        }
+
+        public  Tween CreateTween(HlFunc<double> getter, HlAction<double> setterAction, double targetValue, double duration)
+        {
+            var tweenType = new TType.TEaseOut();
+            return tw.create_(getter, setterAction, null, targetValue, tweenType, (int)(duration * 1000), Ref<bool>.Null);
         }
     }
     #endregion
