@@ -16,9 +16,9 @@ namespace DeadCellsMultiplayerX.Client.UI
         {
             Manager = manager;
             Name = menuName;
-            logger =Log.ForContext(GetType());
+            logger = Log.ForContext(GetType());
         }
-        
+
         public abstract void BuildContent(FlowBox right, int panelW);
 
         /// <summary>
@@ -49,6 +49,6 @@ namespace DeadCellsMultiplayerX.Client.UI
         /// </summary>
         public virtual void BuildMenu() { }
 
-        
+
     }
 }

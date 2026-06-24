@@ -20,11 +20,11 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
                 await ClientMain.Instance.StartHost("127.0.0.1", 12345);
                 ClientMain.Instance.CurrentGuestClient!.SetReady(true);
             });
-            Manager.delayer.addMs(null,()=>{ Manager.LoaddingOut(); onend();},5*1000);
-            
+            Manager.delayer.addMs(null, () => { Manager.LoaddingOut(); onend(); }, 5 * 1000);
+
         }
         public override void OnClient(Action onend) { }
-        public override void Update()  { }
+        public override void Update() { }
 
         public override void OnHostLeave()
         {
