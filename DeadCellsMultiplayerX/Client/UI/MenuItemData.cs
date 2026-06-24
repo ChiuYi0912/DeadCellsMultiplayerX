@@ -44,7 +44,7 @@ namespace DeadCellsMultiplayerX.Client.UI
 
     public enum PageKind
     {
-        Lobby, 
+        Lobby,
 
         Host,
 
@@ -72,9 +72,10 @@ namespace DeadCellsMultiplayerX.Client.UI
 
     public record class BtnData
     {
-        public Flow? Flow { get ; set; }
+        public Flow? Flow { get; set; }
         public dc.ui.Text? text { get; set; }
         public Interactive? interactive { get; set; }
-        public bool LoadAuido { get; set; }=false;
+        public Action? OnReszie { get; set; }
+        public bool LoadAuido { get; set; } = false;
     }
 }

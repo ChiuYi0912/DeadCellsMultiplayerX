@@ -1,6 +1,7 @@
 using dc;
 using dc.ui;
 using HaxeProxy.Runtime;
+using ModCore.Utilities;
 
 namespace DeadCellsMultiplayerX.Client.UI.Modes
 {
@@ -20,11 +21,26 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
                 await ClientMain.Instance.StartHost("127.0.0.1", 12345);
                 ClientMain.Instance.CurrentGuestClient!.SetReady(true);
             });
-            Manager.delayer.addMs(null,()=>{ Manager.LoaddingOut(); onend();},5*1000);
-            
+            Manager.delayer.addMs(null, () => { Manager.LoaddingOut(); onend(); }, 5 * 1000);
+
         }
-        public override void OnClient(Action onend) { }
-        public override void Update()  { }
+        public async override void OnClient(Action<bool> canEnter)
+        {
+            var input = new TextInput(
+                Manager,
+                "输入ip及端口".AsHaxeString(),
+                "test".AsHaxeString(),
+                "".AsHaxeString(),
+                (str) =>
+                {
+                    canEnter.Invoke(true);
+                    Test.StartClient();
+                }
+                , null, null, null
+            );
+
+        }
+
 
         public override void OnHostLeave()
         {
@@ -34,6 +50,11 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
         public override void OnClientLeave()
         {
             Manager.client.CurrentGuestClient?.Quit();
+        }
+
+        public override void Update()
+        {
+
         }
 
     }

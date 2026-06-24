@@ -32,13 +32,13 @@ namespace DeadCellsMultiplayerX.Client.UI
         public ControllerHelperSuper<ModConfig> controllerHelper = null!;
 
         public readonly List<ModeConfig> modes = [];
-        private readonly List<BtnData> btns =[];
-        private readonly List<BtnData> topbtns =[];
+        private readonly List<BtnData> btns = [];
+        private readonly List<BtnData> topbtns = [];
         private readonly List<ReleaseNotes> notes = [];
 
 
-        private readonly Dictionary<ControllerKey,int> keys =[];    // 按键act
-        public readonly Dictionary<Flow,(Loading,Mask)> loadingFlow =[];
+        private readonly Dictionary<ControllerKey, int> keys = [];    // 按键act
+        public readonly Dictionary<Flow, (Loading, Mask)> loadingFlow = [];
 
 
         public Action? onResizeAllloadingFlow;
@@ -48,16 +48,21 @@ namespace DeadCellsMultiplayerX.Client.UI
         private Flow? tabFlow;
         public Flow? leftFlow;
         public Flow? rightFlowMain;
+        public Flow? bodyFlow;
+        private Flow? infoFlow;
+
 
 
         private HSprite? selection;
         private HSprite? tapselection;
-        private ArrayObj? defaultbtns; 
+        private ArrayObj? defaultbtns;
+        private Tile? Imagetile;
+        private Graphics? spacer;
 
         internal int ScreenW { get; private set; }
         internal int ScreenH { get; private set; }
         internal int PanelW { get; private set; }
-        public bool lockInter { get ; set; }
+        public bool lockInter { get; set; }
         private int frameCounter { get; set; }
         public bool isHost { get; private set; }
         public int curTopbts
@@ -87,20 +92,6 @@ namespace DeadCellsMultiplayerX.Client.UI
             this.logger = Log.ForContext(GetType());
             this.config = ModConfig.Config.Value;
             this.titleScreen = titleScreen;
-        }
-        /// <summary>
-        /// 注册游戏模式
-        /// </summary>
-        /// <param name="mode">ModeConfig 子类实例</param>
-        public void RegisterMode(ModeConfig mode) => modes.Add(mode);
-        
-
-        public void Show()
-        {
-            setControlLabel();
-            Hide();
-            BuildUI();
-            BuildInformation();
 
             onResizeAllloadingFlow = () =>
             {
@@ -112,12 +103,26 @@ namespace DeadCellsMultiplayerX.Client.UI
 
                     flow.addChild(mask);
 
-                    mask.width =flow.minWidth ?? flow.borderWidth;
+                    mask.width = flow.minWidth ?? flow.borderWidth;
                     mask.height = flow.minHeight ?? flow.borderHeight;
 
                     load.onResize(mask.width, mask.height);
                 }
             };
+        }
+        /// <summary>
+        /// 注册游戏模式
+        /// </summary>
+        /// <param name="mode">ModeConfig 子类实例</param>
+        public void RegisterMode(ModeConfig mode) => modes.Add(mode);
+
+
+        public void Show()
+        {
+            setControlLabel();
+            Hide();
+            BuildUI();
+            BuildInformation();
 
             titleScreen.controller.manualLock = true;
             titleScreen.blur(default, default);
@@ -126,6 +131,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         public void Hide()
         {
             mainFlow?.remove(); mainFlow = null;
+            infoFlow?.remove(); infoFlow = null;
             tabFlow = null; leftFlow = null; rightFlow = null;
             currentMode = null;
             loadingFlow.Clear();
@@ -133,11 +139,11 @@ namespace DeadCellsMultiplayerX.Client.UI
             titleScreen.unblur();
         }
 
-        public void RefreshUI(){ Hide(); Show(); }
+        public void RefreshUI() { Hide(); Show(); }
 
         public void SelectMode(ModeConfig mode)
         {
-            if ( rightFlow == null) return;
+            if (rightFlow == null) return;
             currentMode = mode;
             BuildRightMode(mode);
             mainFlow!.reflow();
@@ -152,7 +158,7 @@ namespace DeadCellsMultiplayerX.Client.UI
                 rightFlow.reflow();
             }
         }
-        
+
         public void ShowHost(ModeConfig mode)
         {
             mode.OnHost(() =>
@@ -161,18 +167,25 @@ namespace DeadCellsMultiplayerX.Client.UI
                 RefreshFlow(true);
                 AddHostButtons();
             });
-            
+
         }
 
         public void ShowClient(ModeConfig mode)
         {
-            mode.OnClient(() =>
+            mode.OnClient((canEnter) =>
             {
-                RefreshFlow(false);
-                AddClientButtons();
+                if (canEnter)
+                {
+                    RefreshFlow(false);
+                    AddClientButtons();
+                }
+                else
+                {
+
+                }
             });
-            
-            
+
+
         }
 
         public void RefreshFlow(bool ishost)
@@ -211,11 +224,11 @@ namespace DeadCellsMultiplayerX.Client.UI
                 if (hc == null || !hc.CanStartGame) return;
                 await hc.StartGame();
             });
-            BuildLeftBtn(T("return")+T("并销毁房间"), ()=>
+            BuildLeftBtn(T("return") + T("并销毁房间"), () =>
             {
                 currentMode?.OnHostLeave();
                 RefreshUI();
-                
+
             });
         }
 
@@ -230,7 +243,7 @@ namespace DeadCellsMultiplayerX.Client.UI
                 gc.SetReady(!me.IsReady);
                 RefreshLobbySlots();
             });
-            BuildLeftBtn(T("return")+T("并离开房间"), () => 
+            BuildLeftBtn(T("return") + T("并离开房间"), () =>
             {
                 currentMode?.OnClientLeave();
                 RefreshUI();
@@ -252,13 +265,12 @@ namespace DeadCellsMultiplayerX.Client.UI
         }
         #endregion
 
-        
+
 
         #region updates
         public override void update()
         {
             base.update();
-
             currentMode?.Update();
 
             // 每15帧刷新一次玩家卡槽
@@ -283,7 +295,7 @@ namespace DeadCellsMultiplayerX.Client.UI
                     SwitchMode(-1);
             }
 
-            
+
 
 
             void SwitchMode(int step)
@@ -317,6 +329,101 @@ namespace DeadCellsMultiplayerX.Client.UI
         {
             base.onResize();
             CalcLayout();
+
+            if (bodyFlow != null)
+            {
+                bodyFlow.set_minHeight((int?)(ScreenH * 0.95));
+                bodyFlow.reflow();
+            }
+            
+            if (mainFlow == null) return;
+
+            int leftW = ScreenW / 4;
+            mainFlow.set_minWidth(ScreenW);
+            mainFlow.set_minHeight(ScreenH);
+            mainFlow.set_maxWidth(ScreenW);
+            mainFlow.set_maxHeight(ScreenH);
+            mainFlow.reflow();
+
+            if (leftFlow != null)
+            {
+                leftFlow.set_minWidth(leftW);
+                leftFlow.reflow();
+            }
+
+            if (rightFlowMain != null)
+            {
+                rightFlowMain.set_minWidth(PanelW);
+                rightFlowMain.set_maxWidth(PanelW);
+                rightFlowMain.set_minHeight(ScreenH / 2);
+                rightFlowMain.reflow();
+            }
+
+            if (rightFlow != null)
+            {
+                rightFlow.set_minWidth(PanelW);
+                rightFlow.set_maxWidth(PanelW);
+                rightFlow.set_minHeight((int?)(ScreenH / 1.8));
+                rightFlow.reflow();
+
+                Imagetile?.width = (int)rightFlow.minWidth!;
+                Imagetile?.height = (int)rightFlow.minHeight!;
+            }
+
+            if (tabFlow != null)
+            {
+                tabFlow.set_horizontalSpacing(pixel(6));
+                foreach (var item in tabFlow.children)
+                {
+                    if (item is not ControlIcon e) continue;
+                    e.scaleX = e.scaleY = get_pixelScale.Invoke() * 0.5;
+
+                    tabFlow.getProperties(e).paddingTop = pixel(5);
+                    tabFlow.getProperties(e).paddingTop = pixel(5);
+                }
+            }
+
+            if (tabFlow != null)
+                tabFlow.reflow();
+
+            onResizeAllloadingFlow?.Invoke();
+
+
+            foreach (var item in btns)
+            {
+                item?.OnReszie?.Invoke();
+            }
+
+            foreach (var item in topbtns)
+            {
+                item?.OnReszie?.Invoke();
+            }
+
+            delayer.addF(null, () => topbtns[curTopbts]?.OnReszie?.Invoke(), 1);
+
+
+            if (selection != null)
+            {
+                selection.scaleX = selection.scaleY = get_pixelScale.Invoke();
+                selection.posChanged = true;
+            }
+            if (tapselection != null)
+            {
+                tapselection.scaleX = tapselection.scaleY = get_pixelScale.Invoke() / 2;
+                tapselection.posChanged = true;
+            }
+
+            if (spacer != null)
+            {
+                spacer.clear();
+                spacer.beginFill(Ref<int>.In(0xFFFFFF), Ref<double>.In(0.1));
+                spacer.drawRect(0, 0, ScreenW / 2, pixel(1));
+                spacer.endFill();
+            }
+
+
+            delayer.addF(null, () =>{ BuildInformation(); onResizeAllloadingFlow?.Invoke(); }, 1);
+
         }
         #endregion
 
@@ -419,7 +526,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             //切换按钮
             var q = ControlIcon.Class.action.Invoke(keys[ControllerKey.Tab_Exchange_Q], 0, 0, tabFlow);
             var e = ControlIcon.Class.action.Invoke(keys[ControllerKey.Tab_Exchange_E], 0, 0, tabFlow);
-            q.scaleX = q.scaleY = e.scaleX = e.scaleY = e.scaleX / 2;
+            q.scaleX = q.scaleY = e.scaleX = e.scaleY = get_pixelScale.Invoke() * 0.5;
 
             tabFlow.getProperties(e).paddingTop = pixel(5);
             tabFlow.getProperties(q).paddingTop = pixel(5);
@@ -438,13 +545,13 @@ namespace DeadCellsMultiplayerX.Client.UI
             tapselection.posChanged = true;
 
             // 上下分隔
-            var spacer = new Graphics(mainFlow);
+            spacer = new Graphics(mainFlow);
             spacer.beginFill(Ref<int>.In(0xFFFFFF), Ref<double>.In(0.1));
             spacer.drawRect(0, 0, ScreenW / 2, pixel(1));
             spacer.endFill();
 
             // 主体
-            var bodyFlow = new Flow(mainFlow);
+            bodyFlow = new Flow(mainFlow);
             bodyFlow.set_isVertical(false);
             bodyFlow.set_paddingTop(gap);
             bodyFlow.set_minHeight((int?)(ScreenH * 0.95));
@@ -513,9 +620,12 @@ namespace DeadCellsMultiplayerX.Client.UI
 
         private void BuildInformation()
         {
-            var infoFlow = new Flow(rightFlowMain);
+            infoFlow?.remove();
+            infoFlow = new Flow(rightFlowMain);
+
             int w = PanelW / 2;
             int h = ScreenH / 4;
+
 
             var container = CreateBoxLegendaryOutline(infoFlow);
             container.set_isVertical(true);
@@ -544,6 +654,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             };
             box.addChildAt(mask, 1);
 
+
             int scrollPad = pixel(10);
             var contentContainer = new dc.h2d.Object(null);
             mask.addChild(contentContainer);
@@ -560,11 +671,11 @@ namespace DeadCellsMultiplayerX.Client.UI
             {
                 var header = AddText(
                     $"Version:{note.Version}\nLast updated:{note.ReleaseTime}",
-                    null, contentFlow, new FlowAlign.Left(), 1.5, pixel(10));
+                    null, contentFlow, new FlowAlign.Left(), 1.5, 10);
 
                 foreach (var change in note.Changes)
                     AddText($"{change.Type}:{change.Description}",
-                        GetColor(change.Type), contentFlow, new FlowAlign.Left(), 1.4, pixel(30));
+                        GetColor(change.Type), contentFlow, new FlowAlign.Left(), 1.4, 30);
 
                 contentFlow.getProperties(header).paddingTop = pixel(10);
             }
@@ -593,11 +704,11 @@ namespace DeadCellsMultiplayerX.Client.UI
             modBox.reflow();
 
             var mod = ModEntry.Instance.Info;
-            AddText("Mod Information:", null, modBox, new FlowAlign.Middle(), 2, paddingTop: pixel(10));
-            AddText($"Mod name: {mod.Name}", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: pixel(10));
-            AddText("Lead author: HKLab", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: pixel(10));
-            AddText("Contribution: ChiuYi", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: pixel(10));
-            AddText($"Current version: {mod.Version}", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: pixel(10));
+            AddText("Mod Information:", null, modBox, new FlowAlign.Middle(), 2, paddingTop: 10);
+            AddText($"Mod name: {mod.Name}", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: 10);
+            AddText("Lead author: HKLab", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: 10);
+            AddText("Contribution: ChiuYi", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: 10);
+            AddText($"Current version: {mod.Version}", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: 10);
 
             static int GetColor(ChangeType type) => type switch
             {
@@ -652,34 +763,30 @@ namespace DeadCellsMultiplayerX.Client.UI
         /// <param name="cb"></param>
         public void BuildLeftBtn(string label, Action cb)
         {
+            var pixe = get_pixelScale.Invoke();
             var btn = new Flow(leftFlow);
             btn.set_padding(pixel(6));
-            btn.set_minWidth(pixel(140));
+            btn.set_minWidth(PanelW / 3);
             var text = Assets.Class.makeMedievalText(label.AsHaxeString(), null, btn, null);
-            text.scaleX = text.scaleY = get_pixelScale.Invoke() * 0.50;
+            text.scaleX = text.scaleY = get_pixelScale.Invoke() / 2;
             btn.set_enableInteractive(true);
             btn.reflow();
 
-            var data = new BtnData
-            {
-                Flow = btn,
-                text = text,
-                interactive = btn.interactive,
-            };
+
 
             if (btn.interactive != null)
             {
                 btn.interactive.width = btn.calculatedWidth;
                 btn.interactive.height = btn.calculatedHeight;
                 btn.interactive.cursor = new Cursor.Button();
-                btn.interactive.onClick = new HlAction<dc.hxd.Event>(e => 
+                btn.interactive.onClick = new HlAction<dc.hxd.Event>(e =>
                 {
                     if (lockInter) return;
-                    cb(); AudioHelper.LoadAudioFormString("sfx/ui/menu_select.wav"); 
+                    cb(); AudioHelper.LoadAudioFormString("sfx/ui/menu_select.wav");
                 });
                 btn.interactive.onOver = new(e =>
                 {
-                    if(lockInter) return;
+                    if (lockInter) return;
                     AudioHelper.LoadAudioFormString("sfx/ui/menu_click1.wav");
 
                 });
@@ -695,6 +802,25 @@ namespace DeadCellsMultiplayerX.Client.UI
                     sel.posChanged = true;
                 });
             }
+
+            var resize = new Action(() =>
+            {
+                btn.interactive?.onMove.Invoke(null);
+                btn.set_padding(pixel(6));
+                btn.set_minWidth(PanelW / 3);
+                text.scaleX = text.scaleY = get_pixelScale.Invoke() / 2;
+                text.posChanged = true;
+                text.onResize();
+                btn.reflow();
+            });
+
+            var data = new BtnData
+            {
+                Flow = btn,
+                text = text,
+                interactive = btn.interactive,
+                OnReszie = resize
+            };
 
             btns.Add(data);
         }
@@ -714,20 +840,13 @@ namespace DeadCellsMultiplayerX.Client.UI
             btn.set_horizontalAlign(new FlowAlign.Middle());
 
             var text = Assets.Class.makeMedievalText(label.AsHaxeString(), null, btn, null);
-            text.scaleX = text.scaleY = text.scaleX / 2;
+            text.scaleX = text.scaleY = get_pixelScale.Invoke() * 0.25;
             text.posChanged = true;
 
             btn.set_enableInteractive(true);
             btn.reflow();
 
             parent.addChildAt(btn, 2);
-
-            var data = new BtnData
-            {
-                Flow = btn,
-                text = text,
-                interactive = btn.interactive
-            };
 
 
             if (btn.interactive != null)
@@ -737,7 +856,7 @@ namespace DeadCellsMultiplayerX.Client.UI
                 btn.interactive.cursor = new Cursor.Button();
                 btn.interactive.onClick = new HlAction<dc.hxd.Event>(e =>
                 {
-                    if(lockInter) return;
+                    if (lockInter) return;
                     cb();
                     AudioHelper.LoadAudioFormString("sfx/ui/menu_click1.wav");
                     Point point = tapselection!.parent.globalToLocal(topbtns[curTopbts].text!.localToGlobal(null));
@@ -753,11 +872,34 @@ namespace DeadCellsMultiplayerX.Client.UI
                 });
             }
 
+            var resize = new Action(() =>
+            {
+                btn.set_padding(pixel(4));
+                btn.set_minWidth(pixel(70));
+                text.scaleX = text.scaleY = get_pixelScale.Invoke() * 0.25;
+                text.posChanged = true;
+                btn.reflow();
+
+                Point point = tapselection!.parent.globalToLocal(topbtns[curTopbts].text!.localToGlobal(null));
+                HSprite sel = tapselection;
+                sel.x = point.x - (int)(get_pixelScale.Invoke() * 5.0);
+                sel.y = point.y;
+                sel.posChanged = true;
+            });
+
+            var data = new BtnData
+            {
+                Flow = btn,
+                text = text,
+                interactive = btn.interactive,
+                OnReszie = resize
+            };
+
             topbtns.Add(data);
         }
 
 
-        
+
         private void WriteTestLog()
         {
             for (int i = 0; i < 15; i++)
@@ -773,11 +915,11 @@ namespace DeadCellsMultiplayerX.Client.UI
         public void LoadImageTorightFlow(string Path)
         {
             var Image = Res.Class.load(Path.AsHaxeString()).toTexture();
-            var tile = Tile.Class.fromTexture(Image);
-            tile.width = (int)rightFlow!.minWidth!;
-            tile.height = (int)rightFlow.minHeight!;
-            var bmap = new Bitmap(tile, null);
-            rightFlow.addChildAt(bmap, 1);
+            Imagetile = Tile.Class.fromTexture(Image);
+            Imagetile.width = (int)rightFlow!.minWidth!;
+            Imagetile.height = (int)rightFlow.minHeight!;
+            var Imagemap = new Bitmap(Imagetile, null);
+            rightFlow.addChildAt(Imagemap, 1);
         }
 
 
@@ -785,10 +927,10 @@ namespace DeadCellsMultiplayerX.Client.UI
             double scale = 1.0, int padLeft = 0, int paddingTop = 0)
         {
             var t = Assets.Class.makeText(text.AsHaxeString(), color ?? 0xFFFFFF, null, parent);
-            t.scaleX = t.scaleY = scale;
+            t.scaleX = t.scaleY = get_pixelScale.Invoke() * 0.25 * scale;
             parent.getProperties(t).horizontalAlign = hAlign;
-            if (padLeft > 0) parent.getProperties(t).paddingLeft = padLeft;
-            if (paddingTop > 0) parent.getProperties(t).paddingTop = paddingTop;
+            if (padLeft > 0) parent.getProperties(t).paddingLeft = pixel(padLeft);
+            if (paddingTop > 0) parent.getProperties(t).paddingTop = pixel(paddingTop);
             return t;
         }
 
@@ -901,7 +1043,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         public string T(string str) => GetText.Instance.GetString(str);
         public dc.String HT(string str) => GetText.Instance.GetString(str).AsHaxeString();
 
-        public  FlowBox CreateBoxLegendaryOutline(dc.h2d.Object? p, bool boxspr = true)
+        public FlowBox CreateBoxLegendaryOutline(dc.h2d.Object? p, bool boxspr = true)
         {
             FlowBox flowBox = FlowBox.Class.createBoxValidation(p, default, default, Ref<bool>.In(true), null);
 
@@ -914,20 +1056,20 @@ namespace DeadCellsMultiplayerX.Client.UI
 
             flowBox.box.sg.onParentChanged();
 
-            var mask =new Mask((int)flowBox.realMaxWidth, (int)flowBox.realMaxHeight, flowBox);
+            var mask = new Mask((int)flowBox.realMaxWidth, (int)flowBox.realMaxHeight, flowBox);
             flowBox.getProperties(mask).set_isAbsolute(true);
-            var loadingobj =new Loading(mask);
+            var loadingobj = new Loading(mask);
             loadingobj.bgMask.set_visible(false);
-            loadingobj.onResize(mask.width,mask.height);
+            loadingobj.onResize(mask.width, mask.height);
             mask.set_visible(false);
 
-            loadingFlow.Add(flowBox, (loadingobj,mask));
-            
+            loadingFlow.Add(flowBox, (loadingobj, mask));
+
 
             return flowBox;
         }
 
-        public void LoaddingIn(string text, HlAction onend, double s =0.5)
+        public void LoaddingIn(string text, HlAction onend, double s = 0.5)
         {
             onResizeAllloadingFlow?.Invoke();
 
@@ -948,11 +1090,11 @@ namespace DeadCellsMultiplayerX.Client.UI
             mask.set_visible(true);
             loading.bgMask.set_visible(true);
 
-            var animin =CreateTween(() => mask.alpha, (v) => mask.alpha = v, 1.0, s);
+            var animin = CreateTween(() => mask.alpha, (v) => mask.alpha = v, 1.0, s);
             animin.end(onend);
         }
 
-        public void LoaddingOut(double s =1.0)
+        public void LoaddingOut(double s = 1.0)
         {
             var mainflow = mainFlow;
             var item = loadingFlow[mainflow!];
@@ -975,7 +1117,7 @@ namespace DeadCellsMultiplayerX.Client.UI
                 help?.AsHaxeString(), isEnable, Ref<int>.From(ref color));
         }
 
-        public  Tween CreateTween(HlFunc<double> getter, HlAction<double> setterAction, double targetValue, double duration)
+        public Tween CreateTween(HlFunc<double> getter, HlAction<double> setterAction, double targetValue, double duration)
         {
             var tweenType = new TType.TEaseOut();
             return tw.create_(getter, setterAction, null, targetValue, tweenType, (int)(duration * 1000), Ref<bool>.Null);

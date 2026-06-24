@@ -10,13 +10,13 @@ namespace DeadCellsMultiplayerX.Client.UI
 {
     public class PlayerSlotUI
     {
-        public Flow Container   { get; }
+        public Flow Container { get; }
         public Flow? emptybox { get; set; }
-        public HSprite?  HeroSprite  { get; private set; }
-        public dc.ui.Text? NameLabel   { get; private set; }
+        public HSprite? HeroSprite { get; private set; }
+        public dc.ui.Text? NameLabel { get; private set; }
         public dc.ui.Text? StatusLabel { get; private set; }
-        public GuestInfo?  Guest       { get; private set; }
-        public bool IsOccupied  => Guest != null;
+        public GuestInfo? Guest { get; private set; }
+        public bool IsOccupied => Guest != null;
 
         private readonly ILogger logger;
 
@@ -37,8 +37,8 @@ namespace DeadCellsMultiplayerX.Client.UI
             ShowEmpty();
         }
 
-    
-        public void Bind(GuestInfo guest)
+
+        public void Bind (GuestInfo guest)
         {
             if (Guest?.Guid == guest.Guid)
             {
@@ -60,7 +60,7 @@ namespace DeadCellsMultiplayerX.Client.UI
                 emptybox = null;
             }
 
-            string skin = guest.IsHost ? Save.Class.tryLoad().heroSkin.ToString() :guest.SkinMould;
+            string skin = guest.IsHost ? Save.Class.tryLoad().heroSkin.ToString() : guest.SkinMould;
             HeroSprite = UIRenderer.CreateHeroSpr(skin, Container);
 
             NameLabel = Assets.Class.makeText(guest.Name.AsHaxeString(), 0xDDDDDD, null, Container);
@@ -78,9 +78,9 @@ namespace DeadCellsMultiplayerX.Client.UI
         {
             if (Guest == null || StatusLabel == null) return;
 
-            string status = Guest.IsHost  ? "[Host]"  :
+            string status = Guest.IsHost ? "[Host]" :
                             Guest.IsReady ? "[Ready]" : "[...]";
-            int sc = Guest.IsHost  ? 0xFFDD44 :
+            int sc = Guest.IsHost ? 0xFFDD44 :
                      Guest.IsReady ? 0x44FF44 : 0x888888;
 
             StatusLabel.set_text(status.AsHaxeString());
@@ -99,14 +99,14 @@ namespace DeadCellsMultiplayerX.Client.UI
 
         private void ClearContent()
         {
-            HeroSprite?.remove();  HeroSprite  = null;
-            NameLabel?.remove();   NameLabel   = null;
+            HeroSprite?.remove(); HeroSprite = null;
+            NameLabel?.remove(); NameLabel = null;
             StatusLabel?.remove(); StatusLabel = null;
         }
 
         private void ShowEmpty()
         {
-            emptybox =new Flow(Container);
+            emptybox = new Flow(Container);
             var empty = Assets.Class.makeText("[Empty]".AsHaxeString(), 0x666666, null, emptybox);
             empty.scaleX = empty.scaleY = 1.0;
         }
@@ -115,8 +115,8 @@ namespace DeadCellsMultiplayerX.Client.UI
 
     internal class PlayerSlotPanel
     {
-        public Flow           Container { get; }
-        public PlayerSlotUI[] Slots     { get; }
+        public Flow Container { get; }
+        public PlayerSlotUI[] Slots { get; }
 
         private readonly ILogger logger;
 
@@ -140,7 +140,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             Container.reflow();
         }
 
-        
+
         public void Refresh(IEnumerable<GuestInfo> guests)
         {
             var guestList = guests.Take(4).ToList();
