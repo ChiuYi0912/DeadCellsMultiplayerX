@@ -48,13 +48,16 @@ namespace DeadCellsMultiplayerX.Client.UI
         private Flow? tabFlow;
         public Flow? leftFlow;
         public Flow? rightFlowMain;
-
-
+        public Flow? bodyFlow;
         private Flow? infoFlow;
+
+
+
         private HSprite? selection;
         private HSprite? tapselection;
         private ArrayObj? defaultbtns;
         private Tile? Imagetile;
+        private Graphics? spacer;
 
         internal int ScreenW { get; private set; }
         internal int ScreenH { get; private set; }
@@ -89,20 +92,6 @@ namespace DeadCellsMultiplayerX.Client.UI
             this.logger = Log.ForContext(GetType());
             this.config = ModConfig.Config.Value;
             this.titleScreen = titleScreen;
-        }
-        /// <summary>
-        /// 注册游戏模式
-        /// </summary>
-        /// <param name="mode">ModeConfig 子类实例</param>
-        public void RegisterMode(ModeConfig mode) => modes.Add(mode);
-
-
-        public void Show()
-        {
-            setControlLabel();
-            Hide();
-            BuildUI();
-            BuildInformation();
 
             onResizeAllloadingFlow = () =>
             {
@@ -120,6 +109,20 @@ namespace DeadCellsMultiplayerX.Client.UI
                     load.onResize(mask.width, mask.height);
                 }
             };
+        }
+        /// <summary>
+        /// 注册游戏模式
+        /// </summary>
+        /// <param name="mode">ModeConfig 子类实例</param>
+        public void RegisterMode(ModeConfig mode) => modes.Add(mode);
+
+
+        public void Show()
+        {
+            setControlLabel();
+            Hide();
+            BuildUI();
+            BuildInformation();
 
             titleScreen.controller.manualLock = true;
             titleScreen.blur(default, default);
@@ -324,13 +327,18 @@ namespace DeadCellsMultiplayerX.Client.UI
 
         public override void onResize()
         {
-            logger.Information("onresize");
-            CalcLayout();
             base.onResize();
+            CalcLayout();
+
+            if (bodyFlow != null)
+            {
+                bodyFlow.set_minHeight((int?)(ScreenH * 0.95));
+                bodyFlow.reflow();
+            }
+            
             if (mainFlow == null) return;
 
             int leftW = ScreenW / 4;
-
             mainFlow.set_minWidth(ScreenW);
             mainFlow.set_minHeight(ScreenH);
             mainFlow.set_maxWidth(ScreenW);
@@ -362,7 +370,18 @@ namespace DeadCellsMultiplayerX.Client.UI
                 Imagetile?.height = (int)rightFlow.minHeight!;
             }
 
-            BuildInformation();
+            if (tabFlow != null)
+            {
+                tabFlow.set_horizontalSpacing(pixel(6));
+                foreach (var item in tabFlow.children)
+                {
+                    if (item is not ControlIcon e) continue;
+                    e.scaleX = e.scaleY = get_pixelScale.Invoke() * 0.5;
+
+                    tabFlow.getProperties(e).paddingTop = pixel(5);
+                    tabFlow.getProperties(e).paddingTop = pixel(5);
+                }
+            }
 
             if (tabFlow != null)
                 tabFlow.reflow();
@@ -380,6 +399,8 @@ namespace DeadCellsMultiplayerX.Client.UI
                 item?.OnReszie?.Invoke();
             }
 
+            delayer.addF(null, () => topbtns[curTopbts]?.OnReszie?.Invoke(), 1);
+
 
             if (selection != null)
             {
@@ -390,9 +411,18 @@ namespace DeadCellsMultiplayerX.Client.UI
             {
                 tapselection.scaleX = tapselection.scaleY = get_pixelScale.Invoke() / 2;
                 tapselection.posChanged = true;
-                var btn = topbtns[curTopbts];
-                btn?.interactive?.onClick?.Invoke(null!);
             }
+
+            if (spacer != null)
+            {
+                spacer.clear();
+                spacer.beginFill(Ref<int>.In(0xFFFFFF), Ref<double>.In(0.1));
+                spacer.drawRect(0, 0, ScreenW / 2, pixel(1));
+                spacer.endFill();
+            }
+
+
+            delayer.addF(null, () =>{ BuildInformation(); onResizeAllloadingFlow?.Invoke(); }, 1);
 
         }
         #endregion
@@ -496,8 +526,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             //切换按钮
             var q = ControlIcon.Class.action.Invoke(keys[ControllerKey.Tab_Exchange_Q], 0, 0, tabFlow);
             var e = ControlIcon.Class.action.Invoke(keys[ControllerKey.Tab_Exchange_E], 0, 0, tabFlow);
-            logger.Information($"contorl{q.scaleX}");
-            q.scaleX = q.scaleY = e.scaleX = e.scaleY = get_pixelScale.Invoke() / 4;
+            q.scaleX = q.scaleY = e.scaleX = e.scaleY = get_pixelScale.Invoke() * 0.5;
 
             tabFlow.getProperties(e).paddingTop = pixel(5);
             tabFlow.getProperties(q).paddingTop = pixel(5);
@@ -516,13 +545,13 @@ namespace DeadCellsMultiplayerX.Client.UI
             tapselection.posChanged = true;
 
             // 上下分隔
-            var spacer = new Graphics(mainFlow);
+            spacer = new Graphics(mainFlow);
             spacer.beginFill(Ref<int>.In(0xFFFFFF), Ref<double>.In(0.1));
             spacer.drawRect(0, 0, ScreenW / 2, pixel(1));
             spacer.endFill();
 
             // 主体
-            var bodyFlow = new Flow(mainFlow);
+            bodyFlow = new Flow(mainFlow);
             bodyFlow.set_isVertical(false);
             bodyFlow.set_paddingTop(gap);
             bodyFlow.set_minHeight((int?)(ScreenH * 0.95));
@@ -642,11 +671,11 @@ namespace DeadCellsMultiplayerX.Client.UI
             {
                 var header = AddText(
                     $"Version:{note.Version}\nLast updated:{note.ReleaseTime}",
-                    null, contentFlow, new FlowAlign.Left(), 1.5, pixel(10));
+                    null, contentFlow, new FlowAlign.Left(), 1.5, 10);
 
                 foreach (var change in note.Changes)
                     AddText($"{change.Type}:{change.Description}",
-                        GetColor(change.Type), contentFlow, new FlowAlign.Left(), 1.4, pixel(30));
+                        GetColor(change.Type), contentFlow, new FlowAlign.Left(), 1.4, 30);
 
                 contentFlow.getProperties(header).paddingTop = pixel(10);
             }
@@ -675,11 +704,11 @@ namespace DeadCellsMultiplayerX.Client.UI
             modBox.reflow();
 
             var mod = ModEntry.Instance.Info;
-            AddText("Mod Information:", null, modBox, new FlowAlign.Middle(), 2, paddingTop: pixel(10));
-            AddText($"Mod name: {mod.Name}", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: pixel(10));
-            AddText("Lead author: HKLab", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: pixel(10));
-            AddText("Contribution: ChiuYi", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: pixel(10));
-            AddText($"Current version: {mod.Version}", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: pixel(10));
+            AddText("Mod Information:", null, modBox, new FlowAlign.Middle(), 2, paddingTop: 10);
+            AddText($"Mod name: {mod.Name}", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: 10);
+            AddText("Lead author: HKLab", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: 10);
+            AddText("Contribution: ChiuYi", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: 10);
+            AddText($"Current version: {mod.Version}", null, modBox, new FlowAlign.Middle(), 1.5, paddingTop: 10);
 
             static int GetColor(ChangeType type) => type switch
             {
@@ -819,10 +848,6 @@ namespace DeadCellsMultiplayerX.Client.UI
 
             parent.addChildAt(btn, 2);
 
-            
-
-            
-
 
             if (btn.interactive != null)
             {
@@ -849,12 +874,17 @@ namespace DeadCellsMultiplayerX.Client.UI
 
             var resize = new Action(() =>
             {
-                btn.interactive?.onClick.Invoke(null);
                 btn.set_padding(pixel(4));
                 btn.set_minWidth(pixel(70));
                 text.scaleX = text.scaleY = get_pixelScale.Invoke() * 0.25;
                 text.posChanged = true;
                 btn.reflow();
+
+                Point point = tapselection!.parent.globalToLocal(topbtns[curTopbts].text!.localToGlobal(null));
+                HSprite sel = tapselection;
+                sel.x = point.x - (int)(get_pixelScale.Invoke() * 5.0);
+                sel.y = point.y;
+                sel.posChanged = true;
             });
 
             var data = new BtnData
@@ -897,10 +927,10 @@ namespace DeadCellsMultiplayerX.Client.UI
             double scale = 1.0, int padLeft = 0, int paddingTop = 0)
         {
             var t = Assets.Class.makeText(text.AsHaxeString(), color ?? 0xFFFFFF, null, parent);
-            t.scaleX = t.scaleY = scale;
+            t.scaleX = t.scaleY = get_pixelScale.Invoke() * 0.25 * scale;
             parent.getProperties(t).horizontalAlign = hAlign;
-            if (padLeft > 0) parent.getProperties(t).paddingLeft = padLeft;
-            if (paddingTop > 0) parent.getProperties(t).paddingTop = paddingTop;
+            if (padLeft > 0) parent.getProperties(t).paddingLeft = pixel(padLeft);
+            if (paddingTop > 0) parent.getProperties(t).paddingTop = pixel(paddingTop);
             return t;
         }
 
