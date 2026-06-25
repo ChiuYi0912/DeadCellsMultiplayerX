@@ -1,4 +1,6 @@
+using System.Net.Sockets;
 using System.Text.RegularExpressions;
+using dc;
 using dc.ui;
 using HaxeProxy.Runtime;
 using ModCore.Events.Interfaces.Game;
@@ -12,7 +14,14 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
         private string lastClipboard = "";
         private bool isJoining = false;
 
-        public DefaultMode(LobbyMenu manager) : base(manager, "默认联机") { }
+        private string ip = "";
+        private int port;
+
+
+        public DefaultMode(LobbyMenu manager) : base(manager, "默认联机")
+        {
+
+        }
 
         public override void BuildContent(FlowBox right, int panelW)
             => Manager.LoadImageTorightFlow("DeadCellsMultiplayerX/Image/lobbyTile.png");
@@ -25,7 +34,12 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
 
         public override void Update()
         {
-            if (Manager.GetMe() != null) return;
+            if (Manager != null && Manager.playerPanel != null && Manager.playerPanel.titletext != null)
+            {
+                Manager.playerPanel.titletext.set_text($"ip:{this.ip}:{this.port} 当前人数:{Manager.GetPlayerCount()} 服务端延迟:{Manager.GetLatency()}ms".AsHaxeString());
+            }
+
+            if (Manager?.GetMe() != null) return;
 
             if (!isJoining && TryParseInvite(out var ip, out var port))
             {
@@ -37,6 +51,7 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
                 }
             }
         }
+
 
         void IOnGameExit.OnGameExit()
         {
@@ -64,22 +79,63 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
                         return;
                     }
 
-                    Manager.LoaddingIn(asHost ? "创建房间..." : "加入房间...", async () =>
+                    Manager.LoaddingIn(asHost ? "正在创建房间..." : "正在加入房间...", async () =>
                     {
-                        if (asHost)
+                        try
                         {
-                            await ClientMain.Instance.StartHost(ip, port);
-                            CopyInvite(ip, port);
+                            if (asHost)
+                            {
+                                await ClientMain.Instance.StartHost(ip, port);
+                                ClientMain.Instance.CurrentGuestClient!.SetReady(true);
+
+                                CopyInvite(ip, port);
+                            }
+                            else
+                            {
+                                await ClientMain.Instance.StartGuest(ip, port);
+                                // ClientMain.Instance.CurrentGuestClient?.SetReady(true);
+                            }
                         }
-                        else
+                        catch (StreamJsonRpc.ConnectionLostException ex)
                         {
-                            await ClientMain.Instance.StartGuest(ip, port);
-                            ClientMain.Instance.CurrentGuestClient?.SetReady(true);
+                            ShowError(() => Manager.RefreshUI(), $"连接已断开{ex.Message}");
+                            return;
                         }
+                        catch (SocketException ex)
+                        {
+                            ShowError(() => Manager.RefreshUI(), $"网络错误: {ex.Message}");
+                            return;
+                        }
+                        catch (TimeoutException ex)
+                        {
+                            ShowError(() => Manager.RefreshUI(), $"连接超时，请检查对方地址或网络{ex.Message}");
+                            return;
+                        }
+                        catch (OperationCanceledException ex)
+                        {
+                            ShowError(() => Manager.RefreshUI(), $"连接超时或已取消{ex.Message}");
+                            return;
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            return;
+                        }
+                        catch (Exception ex)
+                        {
+                            ShowError(() => Manager.RefreshUI(), $"发生未知错误{ex.Message}");
+                            return;
+                        }
+
                         onEnd?.Invoke();
                         canEnter?.Invoke();
+
+                        this.ip = ip;
+                        this.port = port;
                     });
-                    Manager.delayer.addMs(null, () => Manager.LoaddingOut(), 3000);
+                    Manager.delayer.addMs(null, () =>
+                    {
+                        Manager.LoaddingOut();
+                    }, 3000);
                 }, null, null, null);
         }
 
@@ -111,7 +167,7 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
         {
             lastClipboard = GenerateInvite(ip, port);
             SDL.SDL_SetClipboardText(lastClipboard);
-            new Confirmation(Manager, "邀请已复制".AsHaxeString(), ()=> { }, null, "好的".AsHaxeString(), null, null);
+            new Confirmation(Manager, "邀请已复制".AsHaxeString(), () => { }, null, "好的".AsHaxeString(), null, null);
         }
 
 
@@ -124,10 +180,36 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
                 () =>
                 {
                     isJoining = false;
-                    Manager.LoaddingIn("加入房间...", async () =>
+                    Manager.LoaddingIn("正在加入房间...", async () =>
                     {
-                        await ClientMain.Instance.StartGuest(ip, port);
-                        ClientMain.Instance.CurrentGuestClient?.SetReady(true);
+                        this.ip = ip;
+                        this.port = port;
+
+                        try
+                        {
+                            await ClientMain.Instance.StartGuest(ip, port);
+                            // ClientMain.Instance.CurrentGuestClient?.SetReady(true);
+                        }
+                        catch (StreamJsonRpc.ConnectionLostException ex)
+                        {
+                            ShowError(() => Manager.RefreshUI(), $"连接已断开:{ex.Message}");
+                            return;
+                        }
+                        catch (SocketException ex)
+                        {
+                            ShowError(() => Manager.RefreshUI(), $"网络错误: {ex.Message}");
+                            return;
+                        }
+                        catch (ObjectDisposedException)
+                        {
+                            return;
+                        }
+                        catch (Exception ex)
+                        {
+                            ShowError(() => Manager.RefreshUI(), $"发生错误:{ex.Message}");
+                            return;
+                        }
+
                         Manager.RefreshFlow(false);
                         Manager.AddClientButtons();
                     });
@@ -140,10 +222,11 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
             );
         }
 
-        private void ShowError(HlAction retry)
+        private void ShowError(HlAction retry, string text = "请输入正确IP及端口")
         {
+            logger.Error(text);
             var pop = new ModalPopUp(Ref<bool>.In(false), null);
-            pop.text("请输入正确IP及端口".AsHaxeString(), null, default);
+            pop.text(text.AsHaxeString(), null, default);
             pop.onClose = retry;
         }
     }

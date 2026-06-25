@@ -120,6 +120,8 @@ namespace DeadCellsMultiplayerX.Client.Host
             guestInfo.IsReady = ready;
         }
 
+        public Task Ping() => Task.CompletedTask;
+
         public Task<Stream> GetServerStream()
         {
             if(!host.LobbyInfo.CanConnectServer ||

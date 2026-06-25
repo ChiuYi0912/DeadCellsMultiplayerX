@@ -43,6 +43,11 @@ namespace DeadCellsMultiplayerX.Client.Host
         /// </summary>
         public Task SetSkinMould(string skinMould);
 
+        /// <summary>
+        /// 延迟
+        /// </summary>
+        public Task Ping();
+
         public Task<Stream> GetServerStream();
     }
 }

@@ -12,6 +12,7 @@ using dc.libs.heaps.slib;
 using dc.libs.misc;
 using dc.pr;
 using dc.ui;
+using DeadCellsMultiplayerX.Client.UI.Modes;
 using Hashlink.Virtuals;
 using HashlinkNET.Native.Impl;
 using HaxeProxy.Runtime;
@@ -74,6 +75,10 @@ namespace DeadCellsMultiplayerX.Client.UI
                 ModConfig.Config.Save();
             }
         }
+        private long latencyMs;
+
+
+        public long GetLatency() => latencyMs;
 
         private void CalcLayout()
         {
@@ -115,6 +120,31 @@ namespace DeadCellsMultiplayerX.Client.UI
         /// </summary>
         /// <param name="mode">ModeConfig 子类实例</param>
         public void RegisterMode(ModeConfig mode) => modes.Add(mode);
+
+
+        public GuestInfo? GetMe()
+        {
+            var lobby = isHost
+                ? client.CurrentHostClient?.LobbyInfo
+                : client.CurrentGuestClient?.LobbyInfo;
+            var gc = client.CurrentGuestClient;
+            if (lobby == null || gc == null) return null;
+            return lobby.Guests.Values.FirstOrDefault(g => g.Guid == gc.Guid);
+        }
+
+        public int GetPlayerCount()
+        {
+            var lobby = isHost
+                ? client.CurrentHostClient?.LobbyInfo
+                : client.CurrentGuestClient?.LobbyInfo;
+            return lobby?.Guests.Count ?? 0;
+        }
+        public async Task RefreshLatency()
+        {
+            var gc = client.CurrentGuestClient;
+            if (client == null || gc == null) return;
+            latencyMs = await gc.Ping();
+        }
 
 
         public void Show()
@@ -250,15 +280,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         }
 
 
-        public GuestInfo? GetMe()
-        {
-            var lobby = isHost
-                ? client.CurrentHostClient?.LobbyInfo
-                : client.CurrentGuestClient?.LobbyInfo;
-            var gc = client.CurrentGuestClient;
-            if (lobby == null || gc == null) return null;
-            return lobby.Guests.Values.FirstOrDefault(g => g.Guid == gc.Guid);
-        }
+
 
         public void RefreshLobbySlots()
         {
@@ -281,12 +303,22 @@ namespace DeadCellsMultiplayerX.Client.UI
         public override void update()
         {
             base.update();
-            currentMode?.Update();
+
+            if (currentMode != null)
+            {
+                currentMode.Update();
+            }
 
             // 每15帧刷新一次玩家卡槽
             if (playerPanel != null && frameCounter++ % 15 == 0)
             {
                 RefreshLobbySlots();
+            }
+
+            if (currentMode is DefaultMode)
+            {
+                if (frameCounter % 180 == 0)
+                    _ = RefreshLatency();
             }
 
             if (selection != null)
@@ -430,12 +462,16 @@ namespace DeadCellsMultiplayerX.Client.UI
                 spacer.endFill();
             }
 
+            currentMode?.onResize();
+
             if (playerPanel != null)
             {
                 playerPanel.Container.set_minWidth(rightFlow?.minWidth ?? PanelW);
                 playerPanel.title.set_minWidth(rightFlow?.minWidth ?? PanelW);
                 playerPanel.title.set_minHeight(rightFlow?.minHeight / 10);
                 playerPanel.title.set_maxHeight(rightFlow?.minHeight / 10);
+                playerPanel.titletext.scaleX = playerPanel.titletext.scaleY = get_pixelScale.Invoke() * 0.25;
+                playerPanel.titletext.posChanged = true;
                 playerPanel.Container.reflow();
                 playerPanel.title.reflow();
                 playerPanel.RefreshStatuses();
@@ -443,7 +479,6 @@ namespace DeadCellsMultiplayerX.Client.UI
                 {
                     slot.OnReszie();
                 }
-
             }
 
             delayer.addF(null, () => { BuildInformation(); onResizeAllloadingFlow?.Invoke(); }, 1);

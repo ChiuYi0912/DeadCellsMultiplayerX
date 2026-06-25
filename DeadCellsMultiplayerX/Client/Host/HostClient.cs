@@ -136,7 +136,7 @@ namespace DeadCellsMultiplayerX.Client.Host
         protected override void MyDispose()
         {
             base.MyDispose();
-
+            acceptGuestsCancelSource.Cancel();
             listener.Dispose();
             session?.Dispose();
             session = null;

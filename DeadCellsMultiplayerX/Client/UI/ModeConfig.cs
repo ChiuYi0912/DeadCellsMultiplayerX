@@ -49,6 +49,8 @@ namespace DeadCellsMultiplayerX.Client.UI
         /// </summary>
         public virtual void BuildMenu() { }
 
+        public virtual void onResize() { }
+
 
     }
 }

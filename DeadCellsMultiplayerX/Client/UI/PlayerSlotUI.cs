@@ -18,7 +18,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         public HSprite? HeroSprite { get; private set; }
         public dc.ui.Text? NameLabel { get; private set; }
         public dc.ui.Text? StatusLabel { get; private set; }
-        public GuestInfo? Guest { get;  set; }
+        public GuestInfo? Guest { get; set; }
         public bool IsOccupied => Guest != null;
 
         private readonly ILogger logger;
@@ -179,6 +179,7 @@ namespace DeadCellsMultiplayerX.Client.UI
     {
         public Flow Container { get; }
         public Flow title { get; }
+        public dc.ui.Text titletext { get; }
 
         public PlayerSlotUI[] Slots { get; set; }
         private readonly Queue<string> nameQueue = [];
@@ -197,13 +198,16 @@ namespace DeadCellsMultiplayerX.Client.UI
             lobby = ClientMain.Instance.lobby;
 
 
-            title = new Flow(null) { isVertical = false };
+            title = new Flow(parent) { isVertical = false };
             title.set_minWidth(parent.minWidth);
             title.set_minHeight(parent.minHeight / 10);
             title.set_maxHeight(parent.minHeight / 10);
             title.set_verticalAlign(new FlowAlign.Top());
             title.set_horizontalAlign(new FlowAlign.Middle());
-            parent.addChild(title);
+
+            titletext = Assets.Class.makeMedievalText.Invoke($"".AsHaxeString(), null, title, null);
+            titletext.scaleX = titletext.scaleY = (double)(lobby?.get_pixelScale.Invoke() * 0.25)!;
+            titletext.posChanged = true;
 
             Container = new Flow(null) { isVertical = false };
             parent.addChild(Container);

@@ -90,6 +90,7 @@ namespace DeadCellsMultiplayerX.Client.Guest
         protected override void MyDispose()
         {
             base.MyDispose();
+            DisconnectToken.Cancel();
             session?.Dispose();
             rpc?.Dispose();
         }
@@ -112,6 +113,17 @@ namespace DeadCellsMultiplayerX.Client.Guest
         {
             Debug.Assert(hostInterfact != null);
             return hostInterfact.SetSkinMould(skinMould);
+        }
+
+        public async Task<long> Ping()
+        {
+            if (IsDisposed || rpc == null || rpc.IsDisposed)
+                return -1;
+
+            Debug.Assert(hostInterfact != null);
+            var sw = Stopwatch.StartNew();
+            await hostInterfact.Ping();
+            return sw.ElapsedMilliseconds;
         }
 
         public void Quit()
