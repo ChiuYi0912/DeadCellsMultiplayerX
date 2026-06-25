@@ -3,6 +3,8 @@ using dc.h2d;
 using dc.libs.heaps.slib;
 using dc.tool;
 using dc.ui;
+using DeadCellsMultiplayerX.Client.Event;
+using DeadCellsMultiplayerX.Common;
 using HaxeProxy.Runtime;
 using ModCore.Utilities;
 using Serilog;
@@ -23,6 +25,8 @@ namespace DeadCellsMultiplayerX.Client.UI
         private readonly LobbyMenu? menu;
         private readonly Loading? loading;
         private readonly Action? OnResizeFlow;
+
+        private GuestInfo? prevStatus;
 
         /// <summary>
         /// 玩家状态变更时触发
@@ -49,9 +53,9 @@ namespace DeadCellsMultiplayerX.Client.UI
         }
 
 
-        public void Bind(GuestInfo guest)
+        public void Bind(GuestInfo guest, bool force = false)
         {
-            if (Guest?.Guid == guest.Guid)
+            if (Guest?.Guid == guest.Guid && !force)
             {
                 Guest = guest;
                 if (NameLabel != null)
@@ -95,13 +99,24 @@ namespace DeadCellsMultiplayerX.Client.UI
             StatusLabel.set_text(status.AsHaxeString());
             StatusLabel.set_textColor(sc);
 
-
+            if(prevStatus == null)
+            {
+                prevStatus = Guest.Clone();
+                return;
+            }
+            if(prevStatus.SkinMould != Guest.SkinMould ||
+                prevStatus.Name != Guest.Name)
+            {
+                prevStatus = Guest.Clone();
+                Bind(Guest, true);
+            }
         }
 
         public void Clear()
         {
             if (Guest == null) return;
             Guest = null;
+            prevStatus = null;
             ClearContent();
             ShowEmpty();
             Container.reflow();
