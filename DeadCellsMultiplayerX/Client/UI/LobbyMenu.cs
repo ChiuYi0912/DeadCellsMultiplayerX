@@ -200,7 +200,6 @@ namespace DeadCellsMultiplayerX.Client.UI
             RefreshLobbySlots();
 
             loadingFlow[rightFlow].Item2.set_visible(true);
-            loadingFlow[rightFlow].Item1.text = Assets.Class.makeMedievalText.Invoke("".AsHaxeString(), null, loadingFlow[rightFlow].Item1.loadingFlow, null);
 
             rightFlow.reflow();
             leftFlow.reflow();
@@ -238,11 +237,10 @@ namespace DeadCellsMultiplayerX.Client.UI
         {
             BuildLeftBtn("准备 / 取消", () =>
             {
-                var gc = client.CurrentGuestClient;
-                if (gc == null) return;
-                var me = gc.LobbyInfo?.Guests.Values.FirstOrDefault(g => g.Guid == gc.Guid);
+                var me = GetMe();
                 if (me == null) return;
-                gc.SetReady(!me.IsReady);
+                client.CurrentGuestClient!.SetReady(!me.IsReady);
+                me.IsReady = !me.IsReady;
                 RefreshLobbySlots();
             });
             BuildLeftBtn(T("return") + T("并离开房间"), () =>
@@ -256,6 +254,17 @@ namespace DeadCellsMultiplayerX.Client.UI
         {
             RefreshUI();
             loadingFlow[rightFlow!].Item2.set_visible(false);
+        }
+
+        
+        public GuestInfo? GetMe()
+        {
+            var lobby = isHost
+                ? client.CurrentHostClient?.LobbyInfo
+                : client.CurrentGuestClient?.LobbyInfo;
+            var gc = client.CurrentGuestClient;
+            if (lobby == null || gc == null) return null;
+            return lobby.Guests.Values.FirstOrDefault(g => g.Guid == gc.Guid);
         }
 
         public void RefreshLobbySlots()
@@ -285,7 +294,6 @@ namespace DeadCellsMultiplayerX.Client.UI
             if (playerPanel != null && frameCounter++ % 15 == 0)
             {
                 RefreshLobbySlots();
-                playerPanel.RefreshStatuses();
             }
 
             if (selection != null)
@@ -442,7 +450,7 @@ namespace DeadCellsMultiplayerX.Client.UI
                 {
                     slot.OnReszie();
                 }
-                
+
             }
 
             delayer.addF(null, () => { BuildInformation(); onResizeAllloadingFlow?.Invoke(); }, 1);
@@ -1082,6 +1090,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             var mask = new Mask((int)flowBox.realMaxWidth, (int)flowBox.realMaxHeight, flowBox);
             flowBox.getProperties(mask).set_isAbsolute(true);
             var loadingobj = new Loading(mask);
+            loadingobj.showContent();
             loadingobj.bgMask.set_visible(false);
             loadingobj.onResize(mask.width, mask.height);
             mask.set_visible(false);
@@ -1092,7 +1101,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             return flowBox;
         }
 
-        
+
 
         public void LoaddingIn(string text, HlAction onend, double s = 0.5)
         {
@@ -1106,6 +1115,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             if (loading.text != null)
                 loading.remove();
 
+            loading.text?.remove();
             loading.text = Assets.Class.makeMedievalText.Invoke(text.AsHaxeString(), null, loading.loadingFlow, null);
             loading.onResize(ScreenW, ScreenH);
 
@@ -1130,6 +1140,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             animout.onEnd += () =>
             {
                 loading.hideContent();
+                loading.text.set_text("".AsHaxeString());
                 mask.set_visible(false);
                 lockInter = false;
             };

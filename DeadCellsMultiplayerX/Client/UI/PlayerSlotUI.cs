@@ -18,7 +18,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         public HSprite? HeroSprite { get; private set; }
         public dc.ui.Text? NameLabel { get; private set; }
         public dc.ui.Text? StatusLabel { get; private set; }
-        public GuestInfo? Guest { get; private set; }
+        public GuestInfo? Guest { get;  set; }
         public bool IsOccupied => Guest != null;
 
         private readonly ILogger logger;
@@ -55,6 +55,8 @@ namespace DeadCellsMultiplayerX.Client.UI
 
         public void Bind(GuestInfo guest, bool force = false)
         {
+            if (guest.SkinMould == string.Empty) return;
+
             if (Guest?.Guid == guest.Guid && !force)
             {
                 Guest = guest;
@@ -98,13 +100,14 @@ namespace DeadCellsMultiplayerX.Client.UI
 
             StatusLabel.set_text(status.AsHaxeString());
             StatusLabel.set_textColor(sc);
+            StatusLabel.posChanged = true;
 
-            if(prevStatus == null)
+            if (prevStatus == null)
             {
                 prevStatus = Guest.Clone();
                 return;
             }
-            if(prevStatus.SkinMould != Guest.SkinMould ||
+            if (prevStatus.SkinMould != Guest.SkinMould ||
                 prevStatus.Name != Guest.Name)
             {
                 prevStatus = Guest.Clone();
@@ -177,7 +180,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         public Flow Container { get; }
         public Flow title { get; }
 
-        public PlayerSlotUI[] Slots { get; }
+        public PlayerSlotUI[] Slots { get; set; }
         private readonly Queue<string> nameQueue = [];
 
         private readonly ILogger logger;
@@ -189,9 +192,10 @@ namespace DeadCellsMultiplayerX.Client.UI
 
         public PlayerSlotPanel(Flow parent, Loading loading)
         {
+            this.loading = loading;
             logger = Log.ForContext(GetType());
             lobby = ClientMain.Instance.lobby;
-            this.loading = loading;
+
 
             title = new Flow(null) { isVertical = false };
             title.set_minWidth(parent.minWidth);
@@ -236,6 +240,7 @@ namespace DeadCellsMultiplayerX.Client.UI
 
                 if (Slots[index].Guest?.Guid == guest.Guid)
                 {
+                    Slots[index].Guest = guest;
                     Slots[index].RefreshStatus();
                     continue;
                 }
@@ -243,20 +248,11 @@ namespace DeadCellsMultiplayerX.Client.UI
                 if (Slots[index].Guest != null)
                     Slots[index].Clear();
 
-                lobby?.delayer.addMs(null, () =>
+
+                if (Slots[index].Guest?.Guid != guest.Guid)
                 {
-                    try
-                    {
-                        if (Slots[index].Guest?.Guid != guest.Guid)
-                        {
-                            Slots[index].Bind(guest);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.Error(ex, "Failed to bind player slot {Index}", index);
-                    }
-                }, 10);
+                    Slots[index].Bind(guest);
+                }
             }
         }
 
@@ -301,6 +297,10 @@ namespace DeadCellsMultiplayerX.Client.UI
         public void LoadingNewPlayer(string name)
         {
             if (lobby == null) return;
+
+            loading.text?.remove();
+            loading.loadingFlow.reflow();
+            loading.text = Assets.Class.makeMedievalText.Invoke("".AsHaxeString(), null, loading.loadingFlow, null);
             loading.text.alpha = 0;
 
             var animIn = lobby.CreateTween(() => loading.text.alpha, (v) => loading.text.alpha = v, 1.0, 4);
