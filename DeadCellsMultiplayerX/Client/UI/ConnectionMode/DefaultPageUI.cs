@@ -38,7 +38,6 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
                 }
                 , null, null, null
             );
-
         }
 
 

@@ -2,13 +2,14 @@ using dc;
 using dc.h2d;
 using dc.libs.heaps.slib;
 using dc.tool;
+using dc.ui;
 using HaxeProxy.Runtime;
 using ModCore.Utilities;
 using Serilog;
 
 namespace DeadCellsMultiplayerX.Client.UI
 {
-    public class PlayerSlotUI
+    internal class PlayerSlotUI
     {
         public Flow Container { get; }
         public Flow? emptybox { get; set; }
@@ -19,32 +20,43 @@ namespace DeadCellsMultiplayerX.Client.UI
         public bool IsOccupied => Guest != null;
 
         private readonly ILogger logger;
+        private readonly LobbyMenu? menu;
+        private readonly Loading? loading;
+        private readonly Action? OnResizeFlow;
 
         /// <summary>
         /// 玩家状态变更时触发
         /// </summary>
         public event Action<PlayerSlotUI>? OnChanged;
 
-        internal PlayerSlotUI(Flow parent)
+        internal PlayerSlotUI(Flow parent, Loading loading)
         {
+            this.loading = loading;
             logger = Log.ForContext(GetType());
-
+            menu = ClientMain.Instance.lobby;
             Container = new Flow(parent) { isVertical = true };
             Container.set_minWidth(parent.minWidth / 4);
             Container.set_verticalAlign(new FlowAlign.Middle());
             Container.set_horizontalAlign(new FlowAlign.Middle());
 
+            OnResizeFlow = () =>
+            {
+                Container.set_minWidth(parent.minWidth / 4);
+                Container.reflow();
+            };
+
             ShowEmpty();
         }
 
 
-        public void Bind (GuestInfo guest)
+        public void Bind(GuestInfo guest)
         {
             if (Guest?.Guid == guest.Guid)
             {
                 Guest = guest;
                 if (NameLabel != null)
                     NameLabel.set_text(guest.Name.AsHaxeString());
+
                 RefreshStatus();
                 return;
             }
@@ -62,15 +74,11 @@ namespace DeadCellsMultiplayerX.Client.UI
 
             string skin = guest.IsHost ? Save.Class.tryLoad().heroSkin.ToString() : guest.SkinMould;
             HeroSprite = UIRenderer.CreateHeroSpr(skin, Container);
-
             NameLabel = Assets.Class.makeText(guest.Name.AsHaxeString(), 0xDDDDDD, null, Container);
-            NameLabel.scaleX = NameLabel.scaleY = 1.2;
-
             StatusLabel = Assets.Class.makeText("".AsHaxeString(), null, null, Container);
-            StatusLabel.scaleX = StatusLabel.scaleY = 1.0;
 
-            Container.reflow();
             RefreshStatus();
+            OnReszie();
             OnChanged?.Invoke(this);
         }
 
@@ -83,8 +91,11 @@ namespace DeadCellsMultiplayerX.Client.UI
             int sc = Guest.IsHost ? 0xFFDD44 :
                      Guest.IsReady ? 0x44FF44 : 0x888888;
 
+
             StatusLabel.set_text(status.AsHaxeString());
             StatusLabel.set_textColor(sc);
+
+
         }
 
         public void Clear()
@@ -107,8 +118,41 @@ namespace DeadCellsMultiplayerX.Client.UI
         private void ShowEmpty()
         {
             emptybox = new Flow(Container);
-            var empty = Assets.Class.makeText("[Empty]".AsHaxeString(), 0x666666, null, emptybox);
-            empty.scaleX = empty.scaleY = 1.0;
+            var text = Assets.Class.makeText("[Empty]".AsHaxeString(), 0x666666, null, emptybox);
+            text.scaleX = text.scaleY = (double)(menu?.get_pixelScale.Invoke() * 0.25)!;
+        }
+
+        public void OnReszie()
+        {
+            var pixe = menu?.get_pixelScale.Invoke();
+
+            if (emptybox != null)
+            {
+                foreach (var text in emptybox.children)
+                {
+                    text.scaleX = text.scaleY = (double)(pixe * 0.25)!;
+                    text.posChanged = true;
+                }
+            }
+            if (HeroSprite != null)
+            {
+                HeroSprite.scaleX = HeroSprite.scaleY = (double)(pixe * 0.5)!;
+                HeroSprite.posChanged = true;
+            }
+
+            if (StatusLabel != null)
+            {
+                StatusLabel.scaleX = StatusLabel.scaleY = (double)(pixe * 0.25)!;
+                StatusLabel.posChanged = true;
+            }
+
+            if (NameLabel != null)
+            {
+                NameLabel.scaleX = NameLabel.scaleY = (double)(pixe * 0.30)!;
+                NameLabel.posChanged = true;
+            }
+
+            OnResizeFlow?.Invoke();
         }
     }
 
@@ -116,13 +160,31 @@ namespace DeadCellsMultiplayerX.Client.UI
     internal class PlayerSlotPanel
     {
         public Flow Container { get; }
+        public Flow title { get; }
+
         public PlayerSlotUI[] Slots { get; }
+        private readonly Queue<string> nameQueue = [];
 
         private readonly ILogger logger;
+        private readonly Loading loading;
+        private readonly LobbyMenu? lobby;
 
-        public PlayerSlotPanel(Flow parent)
+
+        private bool isShowingName = false;
+
+        public PlayerSlotPanel(Flow parent, Loading loading)
         {
             logger = Log.ForContext(GetType());
+            lobby = ClientMain.Instance.lobby;
+            this.loading = loading;
+
+            title = new Flow(null) { isVertical = false };
+            title.set_minWidth(parent.minWidth);
+            title.set_minHeight(parent.minHeight / 10);
+            title.set_maxHeight(parent.minHeight / 10);
+            title.set_verticalAlign(new FlowAlign.Top());
+            title.set_horizontalAlign(new FlowAlign.Middle());
+            parent.addChild(title);
 
             Container = new Flow(null) { isVertical = false };
             parent.addChild(Container);
@@ -133,10 +195,11 @@ namespace DeadCellsMultiplayerX.Client.UI
             Slots = new PlayerSlotUI[4];
             for (int i = 0; i < 4; i++)
             {
-                Slots[i] = new PlayerSlotUI(Container);
+                Slots[i] = new PlayerSlotUI(Container, loading);
                 Slots[i].OnChanged += OnSlotChanged;
             }
 
+            title.reflow();
             Container.reflow();
         }
 
@@ -145,14 +208,41 @@ namespace DeadCellsMultiplayerX.Client.UI
         {
             var guestList = guests.Take(4).ToList();
 
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < Slots.Length; i++)
             {
                 if (Slots[i].Guest != null && !guestList.Any(g => g.Guid == Slots[i].Guest!.Guid))
                     Slots[i].Clear();
             }
 
             for (int i = 0; i < guestList.Count; i++)
-                Slots[i].Bind(guestList[i]);
+            {
+                int index = i;
+                var guest = guestList[index];
+
+                if (Slots[index].Guest?.Guid == guest.Guid)
+                {
+                    Slots[index].RefreshStatus();
+                    continue;
+                }
+
+                if (Slots[index].Guest != null)
+                    Slots[index].Clear();
+
+                lobby?.delayer.addMs(null, () =>
+                {
+                    try
+                    {
+                        if (Slots[index].Guest?.Guid != guest.Guid)
+                        {
+                            Slots[index].Bind(guest);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.Error(ex, "Failed to bind player slot {Index}", index);
+                    }
+                }, 10);
+            }
         }
 
         /// <summary>
@@ -171,7 +261,47 @@ namespace DeadCellsMultiplayerX.Client.UI
 
         private void OnSlotChanged(PlayerSlotUI slot)
         {
-            logger.Information("Slot changed: {Name}", slot.Guest?.Name ?? "(empty)");
+            var name = slot.Guest?.Name;
+            if (string.IsNullOrEmpty(name)) return;
+
+            nameQueue.Enqueue(name);
+            if (!isShowingName)
+                ShowNextName();
+            LoadingNewPlayer(slot.Guest?.Name!);
+        }
+
+        private void ShowNextName()
+        {
+            if (nameQueue.Count == 0)
+            {
+                isShowingName = false;
+                return;
+            }
+
+            isShowingName = true;
+            string nextName = nameQueue.Dequeue();
+            LoadingNewPlayer(nextName);
+        }
+
+        public void LoadingNewPlayer(string name)
+        {
+            if (lobby == null) return;
+            loading.text.alpha = 0;
+
+            var animIn = lobby.CreateTween(() => loading.text.alpha, (v) => loading.text.alpha = v, 1.0, 4);
+            animIn?.end(() =>
+            {
+                loading.text.set_text("".AsHaxeString());
+                loading.text.remove();
+                RefreshStatuses();
+                lobby.rightFlow?.reflow();
+                loading.loadingFlow.reflow();
+                lobby.onResizeAllloadingFlow?.Invoke();
+
+                ShowNextName();
+            });
+            loading.text.set_text($"玩家:{name}加入".AsHaxeString());
+            lobby.onResizeAllloadingFlow?.Invoke();
         }
     }
 }
