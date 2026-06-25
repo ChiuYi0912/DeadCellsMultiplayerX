@@ -235,7 +235,6 @@ namespace DeadCellsMultiplayerX.Client.UI
                         if (Slots[index].Guest?.Guid != guest.Guid)
                         {
                             Slots[index].Bind(guest);
-                            Slots[index].OnReszie();
                         }
                     }
                     catch (Exception ex)
