@@ -12,7 +12,7 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
         }
 
         public override void OnHost(Action onend) { }
-        public override void OnClient(Action<bool> canEnter) { }
+        public override void OnClient(Action canEnter) { }
         public override void Update() { }
         public override void OnHostLeave() { }
         public override void OnClientLeave() { }

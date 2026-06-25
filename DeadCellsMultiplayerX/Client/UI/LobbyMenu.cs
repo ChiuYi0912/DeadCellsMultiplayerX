@@ -172,17 +172,10 @@ namespace DeadCellsMultiplayerX.Client.UI
 
         public void ShowClient(ModeConfig mode)
         {
-            mode.OnClient((canEnter) =>
+            mode.OnClient(() =>
             {
-                if (canEnter)
-                {
-                    RefreshFlow(false);
-                    AddClientButtons();
-                }
-                else
-                {
-
-                }
+                RefreshFlow(false);
+                AddClientButtons();
             });
 
 
@@ -256,7 +249,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             loadingFlow[rightFlow!].Item2.set_visible(false);
         }
 
-        
+
         public GuestInfo? GetMe()
         {
             var lobby = isHost
