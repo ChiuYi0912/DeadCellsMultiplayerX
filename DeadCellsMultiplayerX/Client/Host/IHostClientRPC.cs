@@ -41,7 +41,7 @@ namespace DeadCellsMultiplayerX.Client.Host
         /// <summary>
         /// 设置玩家皮肤
         /// </summary>
-        public void SetSkinMould(string skinMould);
+        public Task SetSkinMould(string skinMould);
 
         public Task<Stream> GetServerStream();
     }

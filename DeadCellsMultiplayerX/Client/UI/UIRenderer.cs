@@ -21,11 +21,7 @@ namespace DeadCellsMultiplayerX.Client.UI
                 .ToVirtual<virtual_colorMap_consoleCmdId_glowData_group_head_incompatibleHeads_item_model_onlyDefaultHead_scarfBlendMode_scarfs_>();
             var lib = Assets.Class.getHeroLib(Cdb.Class.getSkinInfo(skinMould.AsHaxeString()));
 
-            var spr = new HSprite(lib, idle, Ref<int>.Null, null)
-            {
-                scaleX = 2.0,
-                scaleY = 2.0,
-            };
+            var spr = new HSprite(lib, idle, Ref<int>.Null, null);
             spr.get_anim().play(idle, null, null)?.loop(null).genSpeed = 0.4;
             spr.set_visible(true);
             parent.addChild(spr);

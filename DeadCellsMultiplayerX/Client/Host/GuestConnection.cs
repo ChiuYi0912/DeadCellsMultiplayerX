@@ -80,9 +80,10 @@ namespace DeadCellsMultiplayerX.Client.Host
             guestInfo.Name = name;
         }
 
-        public void SetSkinMould(string skinMould)
+        public Task SetSkinMould(string skinMould)
         {
             guestInfo.SkinMould = skinMould;
+            return Task.CompletedTask;
         }
 
         public void Quit()

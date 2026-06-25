@@ -47,7 +47,7 @@ namespace DeadCellsMultiplayerX.Client.Guest
             Guid = await hostInterfact.GetGUID();
 
             SetName(name);
-            SetSkinMould(Save.Class.tryLoad().heroSkin.ToString());
+            await SetSkinMould(Save.Class.tryLoad().heroSkin.ToString());
             SetReady(false);
 
             LobbyInfo = await hostInterfact.GetLobbyInfo();
@@ -108,11 +108,10 @@ namespace DeadCellsMultiplayerX.Client.Guest
             hostInterfact.SetReady(ready);
         }
 
-        public void SetSkinMould(string skinMould)
+        public Task SetSkinMould(string skinMould)
         {
             Debug.Assert(hostInterfact != null);
-
-            hostInterfact.SetSkinMould(skinMould);
+            return hostInterfact.SetSkinMould(skinMould);
         }
 
         public void Quit()

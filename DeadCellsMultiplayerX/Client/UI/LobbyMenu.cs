@@ -196,8 +196,11 @@ namespace DeadCellsMultiplayerX.Client.UI
             ClearContent(rightFlow);
             ClearContent(leftFlow!);
 
-            playerPanel = new PlayerSlotPanel(rightFlow);
+            playerPanel = new PlayerSlotPanel(rightFlow, loadingFlow[rightFlow].Item1);
             RefreshLobbySlots();
+
+            loadingFlow[rightFlow].Item2.set_visible(true);
+            loadingFlow[rightFlow].Item1.text = Assets.Class.makeMedievalText.Invoke("".AsHaxeString(), null, loadingFlow[rightFlow].Item1.loadingFlow, null);
 
             rightFlow.reflow();
             leftFlow.reflow();
@@ -227,8 +230,7 @@ namespace DeadCellsMultiplayerX.Client.UI
             BuildLeftBtn(T("return") + T("并销毁房间"), () =>
             {
                 currentMode?.OnHostLeave();
-                RefreshUI();
-
+                Return();
             });
         }
 
@@ -246,8 +248,14 @@ namespace DeadCellsMultiplayerX.Client.UI
             BuildLeftBtn(T("return") + T("并离开房间"), () =>
             {
                 currentMode?.OnClientLeave();
-                RefreshUI();
+                Return();
             });
+        }
+
+        public void Return()
+        {
+            RefreshUI();
+            loadingFlow[rightFlow!].Item2.set_visible(false);
         }
 
         public void RefreshLobbySlots()
@@ -335,7 +343,7 @@ namespace DeadCellsMultiplayerX.Client.UI
                 bodyFlow.set_minHeight((int?)(ScreenH * 0.95));
                 bodyFlow.reflow();
             }
-            
+
             if (mainFlow == null) return;
 
             int leftW = ScreenW / 4;
@@ -421,8 +429,23 @@ namespace DeadCellsMultiplayerX.Client.UI
                 spacer.endFill();
             }
 
+            if (playerPanel != null)
+            {
+                playerPanel.Container.set_minWidth(rightFlow?.minWidth ?? PanelW);
+                playerPanel.title.set_minWidth(rightFlow?.minWidth ?? PanelW);
+                playerPanel.title.set_minHeight(rightFlow?.minHeight / 10);
+                playerPanel.title.set_maxHeight(rightFlow?.minHeight / 10);
+                playerPanel.Container.reflow();
+                playerPanel.title.reflow();
+                playerPanel.RefreshStatuses();
+                foreach (var slot in playerPanel.Slots)
+                {
+                    slot.OnReszie();
+                }
+                
+            }
 
-            delayer.addF(null, () =>{ BuildInformation(); onResizeAllloadingFlow?.Invoke(); }, 1);
+            delayer.addF(null, () => { BuildInformation(); onResizeAllloadingFlow?.Invoke(); }, 1);
 
         }
         #endregion
@@ -1068,6 +1091,8 @@ namespace DeadCellsMultiplayerX.Client.UI
 
             return flowBox;
         }
+
+        
 
         public void LoaddingIn(string text, HlAction onend, double s = 0.5)
         {
