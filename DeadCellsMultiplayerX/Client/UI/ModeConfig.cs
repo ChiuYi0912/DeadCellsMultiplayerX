@@ -29,7 +29,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         /// <summary>
         /// 点击"加入房间"调用
         /// </summary>
-        public abstract void OnClient(Action<bool> canEnter);
+        public abstract void OnClient(Action onend);
 
         /// <summary>
         /// 房主离开房间
@@ -41,6 +41,11 @@ namespace DeadCellsMultiplayerX.Client.UI
         /// </summary>
         public abstract void OnClientLeave();
 
+        /// <summary>
+        /// 房主开始游戏
+        /// </summary>
+        public abstract void OnHostStartGame();
+
 
         public abstract void Update();
 
@@ -48,6 +53,8 @@ namespace DeadCellsMultiplayerX.Client.UI
         /// 向左侧菜单添加按钮
         /// </summary>
         public virtual void BuildMenu() { }
+
+        public virtual void onResize() { }
 
 
     }

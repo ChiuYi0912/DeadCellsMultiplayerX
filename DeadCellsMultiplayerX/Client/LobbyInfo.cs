@@ -63,7 +63,7 @@ namespace DeadCellsMultiplayerX.Client
         /// <summary>
         /// 玩家皮肤
         /// </summary>
-        public string SkinMould { get; set; } = "Tick4";
+        public string SkinMould { get; set; } = string.Empty;
 
         public GuestInfo Clone() => (GuestInfo) MemberwiseClone();
     }

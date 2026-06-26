@@ -18,7 +18,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         public HSprite? HeroSprite { get; private set; }
         public dc.ui.Text? NameLabel { get; private set; }
         public dc.ui.Text? StatusLabel { get; private set; }
-        public GuestInfo? Guest { get; private set; }
+        public GuestInfo? Guest { get; set; }
         public bool IsOccupied => Guest != null;
 
         private readonly ILogger logger;
@@ -55,6 +55,8 @@ namespace DeadCellsMultiplayerX.Client.UI
 
         public void Bind(GuestInfo guest, bool force = false)
         {
+            if (guest.SkinMould == string.Empty) return;
+
             if (Guest?.Guid == guest.Guid && !force)
             {
                 Guest = guest;
@@ -86,6 +88,9 @@ namespace DeadCellsMultiplayerX.Client.UI
             OnChanged?.Invoke(this);
         }
 
+        /// <summary>
+        /// 更新文本
+        /// </summary>
         public void RefreshStatus()
         {
             if (Guest == null || StatusLabel == null) return;
@@ -98,13 +103,14 @@ namespace DeadCellsMultiplayerX.Client.UI
 
             StatusLabel.set_text(status.AsHaxeString());
             StatusLabel.set_textColor(sc);
+            StatusLabel.posChanged = true;
 
-            if(prevStatus == null)
+            if (prevStatus == null)
             {
                 prevStatus = Guest.Clone();
                 return;
             }
-            if(prevStatus.SkinMould != Guest.SkinMould ||
+            if (prevStatus.SkinMould != Guest.SkinMould ||
                 prevStatus.Name != Guest.Name)
             {
                 prevStatus = Guest.Clone();
@@ -130,6 +136,9 @@ namespace DeadCellsMultiplayerX.Client.UI
             StatusLabel?.remove(); StatusLabel = null;
         }
 
+        /// <summary>
+        /// 显示空位置
+        /// </summary>
         private void ShowEmpty()
         {
             emptybox = new Flow(Container);
@@ -174,11 +183,12 @@ namespace DeadCellsMultiplayerX.Client.UI
 
     internal class PlayerSlotPanel
     {
-        public Flow Container { get; }
-        public Flow title { get; }
+        public Flow Container { get; private set; }
+        public Flow title { get; private set; }
+        public HtmlText titletext { get; }
 
-        public PlayerSlotUI[] Slots { get; }
-        private readonly Queue<string> nameQueue = [];
+        public PlayerSlotUI[] Slots { get; set; }
+        private readonly Queue<string> nameQueue = []; //右下角提示
 
         private readonly ILogger logger;
         private readonly Loading loading;
@@ -189,17 +199,21 @@ namespace DeadCellsMultiplayerX.Client.UI
 
         public PlayerSlotPanel(Flow parent, Loading loading)
         {
+            this.loading = loading;
             logger = Log.ForContext(GetType());
             lobby = ClientMain.Instance.lobby;
-            this.loading = loading;
 
-            title = new Flow(null) { isVertical = false };
+
+            title = new Flow(parent) { isVertical = false };
             title.set_minWidth(parent.minWidth);
             title.set_minHeight(parent.minHeight / 10);
             title.set_maxHeight(parent.minHeight / 10);
             title.set_verticalAlign(new FlowAlign.Top());
             title.set_horizontalAlign(new FlowAlign.Middle());
-            parent.addChild(title);
+
+
+            titletext = new HtmlText(Assets.Class.font12, title);
+            lobby?.ApplyHTMLFont(titletext, lobby.get_pixelScale.Invoke() * 0.25);
 
             Container = new Flow(null) { isVertical = false };
             parent.addChild(Container);
@@ -236,6 +250,7 @@ namespace DeadCellsMultiplayerX.Client.UI
 
                 if (Slots[index].Guest?.Guid == guest.Guid)
                 {
+                    Slots[index].Guest = guest;
                     Slots[index].RefreshStatus();
                     continue;
                 }
@@ -243,20 +258,11 @@ namespace DeadCellsMultiplayerX.Client.UI
                 if (Slots[index].Guest != null)
                     Slots[index].Clear();
 
-                lobby?.delayer.addMs(null, () =>
+
+                if (Slots[index].Guest?.Guid != guest.Guid)
                 {
-                    try
-                    {
-                        if (Slots[index].Guest?.Guid != guest.Guid)
-                        {
-                            Slots[index].Bind(guest);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.Error(ex, "Failed to bind player slot {Index}", index);
-                    }
-                }, 10);
+                    Slots[index].Bind(guest);
+                }
             }
         }
 
@@ -272,6 +278,9 @@ namespace DeadCellsMultiplayerX.Client.UI
         public void ClearAll()
         {
             foreach (var s in Slots) s.Clear();
+            Container.removeChildren();
+            Container.remove();
+            Container = null!;
         }
 
         private void OnSlotChanged(PlayerSlotUI slot)
@@ -301,6 +310,10 @@ namespace DeadCellsMultiplayerX.Client.UI
         public void LoadingNewPlayer(string name)
         {
             if (lobby == null) return;
+
+            loading.text?.remove();
+            loading.loadingFlow.reflow();
+            loading.text = Assets.Class.makeMedievalText.Invoke("".AsHaxeString(), null, loading.loadingFlow, null);
             loading.text.alpha = 0;
 
             var animIn = lobby.CreateTween(() => loading.text.alpha, (v) => loading.text.alpha = v, 1.0, 4);
