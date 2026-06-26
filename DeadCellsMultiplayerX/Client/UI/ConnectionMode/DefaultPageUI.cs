@@ -173,7 +173,7 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
                     {
                         Manager.LoaddingOut();
                     }, 3000);
-                }, null, null, null);
+                }, "回车确认".AsHaxeString(), null, null);
         }
 
 
@@ -282,6 +282,7 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
         private void ShowError(HlAction retry, string text = "请输入正确IP及端口")
         {
             logger.Error(text);
+            Manager.LoaddingOut();
             var pop = new ModalPopUp(Ref<bool>.In(false), null);
             pop.text(text.AsHaxeString(), null, default);
             pop.onClose = retry;

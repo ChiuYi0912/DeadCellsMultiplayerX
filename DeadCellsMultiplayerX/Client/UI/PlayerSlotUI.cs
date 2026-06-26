@@ -278,9 +278,12 @@ namespace DeadCellsMultiplayerX.Client.UI
         public void ClearAll()
         {
             foreach (var s in Slots) s.Clear();
-            Container.removeChildren();
-            Container.remove();
-            Container = null!;
+            if (Container != null)
+            {
+                Container.removeChildren();
+                Container.remove();
+                Container = null!;
+            }
         }
 
         private void OnSlotChanged(PlayerSlotUI slot)
