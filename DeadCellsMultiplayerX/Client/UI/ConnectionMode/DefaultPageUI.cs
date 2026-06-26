@@ -99,6 +99,7 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
 
         private void StartConnect(bool asHost, Action? onEnd = null, Action? canEnter = null)
         {
+            Manager.lockInter = true;
             string defaultIp = "";
 #if DEBUG
             defaultIp = "127.0.0.1:12345";
@@ -226,6 +227,7 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
         private void ShowJoinConfirm(string ip, int port)
         {
             isJoining = true;
+            Manager.lockInter = true;
             new Confirmation(
                 Manager,
                 $"检测到邀请：{ip}:{port}\n是否加入？".AsHaxeString(),
@@ -264,6 +266,7 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
 
                         Manager.OpenPanel(false);
                         Manager.AddClientButtons();
+                        Manager.onResize();
                     });
                     Manager.delayer.addMs(null, () => Manager.LoaddingOut(), 3000);
                 },

@@ -242,8 +242,8 @@ namespace DeadCellsMultiplayerX.Client.UI
             btns.Clear();
             ClearContent(leftFlow!);
 
-            BuildLeftBtn(T("CreateRoom"), () => { if (currentMode != null) ShowHost(currentMode); });
-            BuildLeftBtn(T("JoinRoom"), () => { if (currentMode != null) ShowClient(currentMode); });
+            BuildLeftBtn(T("CreateRoom"), () => { if (currentMode != null) ShowHost(currentMode); onResize(); });
+            BuildLeftBtn(T("JoinRoom"), () => { if (currentMode != null) ShowClient(currentMode); onResize(); });
             currentMode?.BuildMenu();
             BuildLeftBtn(T("return"), () => delayer.addF(null, Hide, 1));
 
@@ -274,13 +274,48 @@ namespace DeadCellsMultiplayerX.Client.UI
         {
             BuildLeftBtn("开始游戏", async () =>
             {
+                var players = client?.CurrentGuestClient?.LobbyInfo?.Guests;
+                if (players == null)
+                {
+                    ShowError(() => { }, "连接异常无法开始游戏");
+                    return;
+                }
+
+                bool canstart = true;
+                List<string> name = [];
+                foreach (var item in players)
+                {
+                    if (!item.Value.IsReady)
+                    {
+                        canstart = false;
+                        name.Add(item.Value.Name);
+                    }
+
+                }
+                if (!canstart)
+                {
+                    ShowError(() =>
+                    {
+                        RefreshLobbySlots();
+                    }, $"玩家: {string.Join(",", name)} 未准备，无法开始游戏");
+                    return;
+                }
                 currentMode?.OnHostStartGame();
+                onResize();
             });
             BuildLeftBtn(T("return") + T("并销毁房间"), () =>
             {
                 currentMode?.OnHostLeave();
                 Return();
             });
+
+            void ShowError(HlAction retry, string text = "")
+            {
+                logger.Error(text);
+                var pop = new ModalPopUp(Ref<bool>.In(false), null);
+                pop.text(text.AsHaxeString(), null, default);
+                pop.onClose = retry;
+            }
         }
 
         /// <summary>
@@ -548,9 +583,13 @@ namespace DeadCellsMultiplayerX.Client.UI
 
                 if (btns.Count != 0)
                 {
-                    curleftbtn = 0;
+                    while (btns.Count < curleftbtn)
+                    {
+                        curleftbtn--;
+                    }
                     btns[curleftbtn]?.interactive?.onMove?.Invoke(null!);
                 }
+
             }, 1);
 
         }
@@ -1153,6 +1192,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         /// <param name="s"></param>
         public void LoaddingOut(double s = 1.0)
         {
+
             var item = loadingFlow[mainFlow!];
             var loading = item.Item1;
             var mask = item.Item2;
