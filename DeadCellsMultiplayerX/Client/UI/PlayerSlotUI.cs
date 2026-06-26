@@ -88,6 +88,9 @@ namespace DeadCellsMultiplayerX.Client.UI
             OnChanged?.Invoke(this);
         }
 
+        /// <summary>
+        /// 更新文本
+        /// </summary>
         public void RefreshStatus()
         {
             if (Guest == null || StatusLabel == null) return;
@@ -133,6 +136,9 @@ namespace DeadCellsMultiplayerX.Client.UI
             StatusLabel?.remove(); StatusLabel = null;
         }
 
+        /// <summary>
+        /// 显示空位置
+        /// </summary>
         private void ShowEmpty()
         {
             emptybox = new Flow(Container);
@@ -177,12 +183,12 @@ namespace DeadCellsMultiplayerX.Client.UI
 
     internal class PlayerSlotPanel
     {
-        public Flow Container { get; }
-        public Flow title { get; }
+        public Flow Container { get; private set; }
+        public Flow title { get; private set; }
         public HtmlText titletext { get; }
 
         public PlayerSlotUI[] Slots { get; set; }
-        private readonly Queue<string> nameQueue = [];
+        private readonly Queue<string> nameQueue = []; //右下角提示
 
         private readonly ILogger logger;
         private readonly Loading loading;
@@ -272,6 +278,9 @@ namespace DeadCellsMultiplayerX.Client.UI
         public void ClearAll()
         {
             foreach (var s in Slots) s.Clear();
+            Container.removeChildren();
+            Container.remove();
+            Container = null!;
         }
 
         private void OnSlotChanged(PlayerSlotUI slot)

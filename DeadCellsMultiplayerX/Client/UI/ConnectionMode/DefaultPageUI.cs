@@ -16,8 +16,8 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
     IOnServerEnterNewLevel
     {
         private string lastClipboard = "";
-        private bool isJoining = false;
-        private bool loadingTriggered = false;
+        private bool isJoining = false; //是否受邀请进入房间
+        private bool loadingTriggered = false; //房主是否开始游戏
 
         private string ip = "";
         private int port;
@@ -34,6 +34,9 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
         public override void OnHostLeave() => Manager.client.CurrentHostClient?.Dispose();
         public override void OnClientLeave() => Manager.client.CurrentGuestClient?.Quit();
 
+        /// <summary>
+        /// 房主开始游戏
+        /// </summary>
         public async override void OnHostStartGame()
         {
             var hc = Manager.client.CurrentHostClient;
@@ -53,7 +56,7 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
                 Manager.playerPanel.titletext.set_text(text.AsHaxeString());
             }
 
-
+            //房主开始游戏时,进入黑屏
             if (!loadingTriggered && Manager?.client != null)
             {
                 bool isStarted = Manager.client.CurrentHostClient?.LobbyInfo?.IsStarted == true
@@ -74,7 +77,7 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
 
 
             if (Manager?.GetMe() != null) return;
-
+            // 检测粘贴,进入对应房间
             if (!isJoining && TryParseInvite(out var ip, out var port))
             {
                 var newip = GenerateInvite(ip, port);
@@ -194,9 +197,20 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
             return true;
         }
 
+        /// <summary>
+        /// 邀请文字
+        /// </summary>
+        /// <param name="ip"></param>
+        /// <param name="port"></param>
+        /// <returns></returns>
         private string GenerateInvite(string ip, int port)
             => $"复制此文字打开死亡细胞联机模组即可加入我的房间 IP: {ip} 端口: {port}";
 
+        /// <summary>
+        /// 提示以复制邀请
+        /// </summary>
+        /// <param name="ip"></param>
+        /// <param name="port"></param>
         private void CopyInvite(string ip, int port)
         {
             lastClipboard = GenerateInvite(ip, port);
@@ -204,7 +218,11 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
             new Confirmation(Manager, "邀请已复制".AsHaxeString(), () => { }, null, "好的".AsHaxeString(), null, null);
         }
 
-
+        /// <summary>
+        /// 进入粘贴面板中的房间
+        /// </summary>
+        /// <param name="ip"></param>
+        /// <param name="port"></param>
         private void ShowJoinConfirm(string ip, int port)
         {
             isJoining = true;
@@ -244,7 +262,7 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
                             return;
                         }
 
-                        Manager.RefreshFlow(false);
+                        Manager.OpenPanel(false);
                         Manager.AddClientButtons();
                     });
                     Manager.delayer.addMs(null, () => Manager.LoaddingOut(), 3000);
@@ -256,6 +274,11 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
             );
         }
 
+        /// <summary>
+        /// 显示报错
+        /// </summary>
+        /// <param name="retry"></param>
+        /// <param name="text"></param>
         private void ShowError(HlAction retry, string text = "请输入正确IP及端口")
         {
             logger.Error(text);
@@ -271,12 +294,12 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
                 Manager.LoaddingOut();
                 loadingTriggered = false;
             }
-            
+
         }
 
         void IOnServerEnterNewLevel.OnServerEnterNewLevel()
         {
-            
+
         }
     }
 }
