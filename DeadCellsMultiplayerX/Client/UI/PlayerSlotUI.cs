@@ -179,7 +179,7 @@ namespace DeadCellsMultiplayerX.Client.UI
     {
         public Flow Container { get; }
         public Flow title { get; }
-        public dc.ui.Text titletext { get; }
+        public HtmlText titletext { get; }
 
         public PlayerSlotUI[] Slots { get; set; }
         private readonly Queue<string> nameQueue = [];
@@ -205,9 +205,9 @@ namespace DeadCellsMultiplayerX.Client.UI
             title.set_verticalAlign(new FlowAlign.Top());
             title.set_horizontalAlign(new FlowAlign.Middle());
 
-            titletext = Assets.Class.makeMedievalText.Invoke($"".AsHaxeString(), null, title, null);
-            titletext.scaleX = titletext.scaleY = (double)(lobby?.get_pixelScale.Invoke() * 0.25)!;
-            titletext.posChanged = true;
+
+            titletext = new HtmlText(Assets.Class.font12, title);
+            lobby?.ApplyHTMLFont(titletext, lobby.get_pixelScale.Invoke() * 0.25);
 
             Container = new Flow(null) { isVertical = false };
             parent.addChild(Container);

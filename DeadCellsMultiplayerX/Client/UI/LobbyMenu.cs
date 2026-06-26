@@ -245,9 +245,7 @@ namespace DeadCellsMultiplayerX.Client.UI
         {
             BuildLeftBtn("开始游戏", async () =>
             {
-                var hc = client.CurrentHostClient;
-                if (hc == null || !hc.CanStartGame) return;
-                await hc.StartGame();
+                currentMode?.OnHostStartGame();
             });
             BuildLeftBtn(T("return") + T("并销毁房间"), () =>
             {
@@ -470,7 +468,7 @@ namespace DeadCellsMultiplayerX.Client.UI
                 playerPanel.title.set_minWidth(rightFlow?.minWidth ?? PanelW);
                 playerPanel.title.set_minHeight(rightFlow?.minHeight / 10);
                 playerPanel.title.set_maxHeight(rightFlow?.minHeight / 10);
-                playerPanel.titletext.scaleX = playerPanel.titletext.scaleY = get_pixelScale.Invoke() * 0.25;
+                ApplyHTMLFont(playerPanel.titletext, get_pixelScale.Invoke() * 0.25);
                 playerPanel.titletext.posChanged = true;
                 playerPanel.Container.reflow();
                 playerPanel.title.reflow();
@@ -1118,10 +1116,9 @@ namespace DeadCellsMultiplayerX.Client.UI
             var mask = new Mask((int)flowBox.realMaxWidth, (int)flowBox.realMaxHeight, flowBox);
             flowBox.getProperties(mask).set_isAbsolute(true);
             var loadingobj = new Loading(mask);
-            loadingobj.showContent();
             loadingobj.bgMask.set_visible(false);
-            loadingobj.onResize(mask.width, mask.height);
             mask.set_visible(false);
+            loadingobj.onResize(mask.width, mask.height);
 
             loadingFlow.Add(flowBox, (loadingobj, mask));
 
@@ -1135,43 +1132,41 @@ namespace DeadCellsMultiplayerX.Client.UI
         {
             onResizeAllloadingFlow?.Invoke();
 
-            var mainflow = mainFlow;
-            var item = loadingFlow[mainflow!];
+            var item = loadingFlow[mainFlow!];
             var loading = item.Item1;
             var mask = item.Item2;
-
-            if (loading.text != null)
-                loading.remove();
 
             loading.text?.remove();
             loading.text = Assets.Class.makeMedievalText.Invoke(text.AsHaxeString(), null, loading.loadingFlow, null);
             loading.onResize(ScreenW, ScreenH);
-
-            lockInter = true;
-
-            mask.alpha = 0;
+            
             mask.set_visible(true);
             loading.bgMask.set_visible(true);
 
-            var animin = CreateTween(() => mask.alpha, (v) => mask.alpha = v, 1.0, s);
+            mask.alpha = 0;
+            lockInter = true;
+            mask.posChanged = true;
+            loading.posChanged = true;
+            var animin = CreateTween(() => mask.alpha, (v) => { mask.alpha = v; mask.posChanged = true; }, 1.0, s);
             animin.end(onend);
         }
 
         public void LoaddingOut(double s = 1.0)
         {
-            var mainflow = mainFlow;
-            var item = loadingFlow[mainflow!];
+            var item = loadingFlow[mainFlow!];
             var loading = item.Item1;
             var mask = item.Item2;
 
-            var animout = CreateTween(() => mask.alpha, (v) => mask.alpha = v, 0, s);
-            animout.onEnd += () =>
+            var animout = CreateTween(() => mask.alpha, (v) => { mask.alpha = v; mask.posChanged = true; }, 0, s);
+            animout.end(() =>
             {
-                loading.hideContent();
                 loading.text.set_text("".AsHaxeString());
-                mask.set_visible(false);
                 lockInter = false;
-            };
+                mask.set_visible(false);
+                loading.bgMask.set_visible(false);
+                mask.posChanged = true;
+                loading.posChanged = true;
+            });
         }
 
         public virtual_cb_help_inter_isEnable_t_<bool> BuildMenuChild(
@@ -1185,6 +1180,37 @@ namespace DeadCellsMultiplayerX.Client.UI
         {
             var tweenType = new TType.TEaseOut();
             return tw.create_(getter, setterAction, null, targetValue, tweenType, (int)(duration * 1000), Ref<bool>.Null);
+        }
+
+        public void ApplyHTMLFont(HtmlText htmlText, double scale = 1)
+        {
+            double pixelScale = get_pixelScale.Invoke();
+            var fontConf = Assets.Class.fontConf;
+
+
+            BitmapFont bitmapFont;
+
+            if (pixelScale <= 3.0)
+            {
+                bitmapFont = fontConf.font12;
+            }
+            else if (pixelScale <= 4.0)
+            {
+                bitmapFont = fontConf.font18;
+            }
+            else if (pixelScale <= 6.0)
+            {
+                bitmapFont = fontConf.font12;
+            }
+            else
+            {
+                bitmapFont = fontConf.font18;
+            }
+
+            Font font = bitmapFont.toFont();
+            htmlText.set_font(font);
+            htmlText.scaleX = htmlText.scaleY = scale;
+            htmlText.posChanged = true;
         }
     }
     #endregion

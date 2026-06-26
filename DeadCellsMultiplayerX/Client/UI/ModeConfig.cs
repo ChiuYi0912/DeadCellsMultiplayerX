@@ -41,6 +41,11 @@ namespace DeadCellsMultiplayerX.Client.UI
         /// </summary>
         public abstract void OnClientLeave();
 
+        /// <summary>
+        /// 房主开始游戏
+        /// </summary>
+        public abstract void OnHostStartGame();
+
 
         public abstract void Update();
 

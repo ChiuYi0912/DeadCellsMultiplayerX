@@ -13,6 +13,8 @@ using DeadCellsMultiplayerX.Client.UI;
 using dc;
 using ModCore.Modules;
 using DeadCellsMultiplayerX.Client.UI.Modes;
+using ModCore.Events;
+using DeadCellsMultiplayerX.Server.Events;
 
 namespace DeadCellsMultiplayerX.Client
 {
@@ -40,7 +42,13 @@ namespace DeadCellsMultiplayerX.Client
 
             Hook_TitleScreen.mainMenu += Hook_TitleScreen_mainMenu;
             Hook__TitleScreen.__constructor__ += Hook__TitleScreen__constructor__;
-            Hook_TitleScreen.onDispose += (orig, self) => lobby?.destroy();
+            Hook_TitleScreen.onDispose += (orig, self) =>
+            {
+                orig(self);
+                EventSystem.BroadcastEvent<IOnLobbyMenuDisposed>();
+                lobby?.Hide();
+                lobby?.destroy();
+            };
         }
 
 

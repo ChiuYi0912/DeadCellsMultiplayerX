@@ -2,6 +2,7 @@ using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using dc;
 using dc.ui;
+using DeadCellsMultiplayerX.Server.Events;
 using HaxeProxy.Runtime;
 using ModCore.Events.Interfaces.Game;
 using ModCore.Utilities;
@@ -9,19 +10,20 @@ using SDL2;
 
 namespace DeadCellsMultiplayerX.Client.UI.Modes
 {
-    internal class DefaultMode : ModeConfig, IOnGameExit
+    internal class DefaultMode : ModeConfig,
+    IOnGameExit,
+    IOnLobbyMenuDisposed,
+    IOnServerEnterNewLevel
     {
         private string lastClipboard = "";
         private bool isJoining = false;
+        private bool loadingTriggered = false;
 
         private string ip = "";
         private int port;
 
 
-        public DefaultMode(LobbyMenu manager) : base(manager, "默认联机")
-        {
-
-        }
+        public DefaultMode(LobbyMenu manager) : base(manager, "默认联机") { }
 
         public override void BuildContent(FlowBox right, int panelW)
             => Manager.LoadImageTorightFlow("DeadCellsMultiplayerX/Image/lobbyTile.png");
@@ -32,12 +34,44 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
         public override void OnHostLeave() => Manager.client.CurrentHostClient?.Dispose();
         public override void OnClientLeave() => Manager.client.CurrentGuestClient?.Quit();
 
+        public async override void OnHostStartGame()
+        {
+            var hc = Manager.client.CurrentHostClient;
+            if (hc == null || !hc.CanStartGame) return;
+            await hc.StartGame();
+        }
+
         public override void Update()
         {
             if (Manager != null && Manager.playerPanel != null && Manager.playerPanel.titletext != null)
             {
-                Manager.playerPanel.titletext.set_text($"ip:{this.ip}:{this.port} 当前人数:{Manager.GetPlayerCount()} 服务端延迟:{Manager.GetLatency()}ms".AsHaxeString());
+                long latency = Manager.GetLatency();
+
+                string hex = latency <= 50 ? "00FF00" :
+                        latency <= 100 ? "FFFF00" : "FF0000";
+                string text = $"ip:{this.ip}:{this.port} 当前人数:{Manager.GetPlayerCount()} 服务端延迟:<font color=\"#{hex}\">{latency}ms</font>";
+                Manager.playerPanel.titletext.set_text(text.AsHaxeString());
             }
+
+
+            if (!loadingTriggered && Manager?.client != null)
+            {
+                bool isStarted = Manager.client.CurrentHostClient?.LobbyInfo?.IsStarted == true
+                              || Manager.client.CurrentGuestClient?.LobbyInfo?.IsStarted == true;
+
+                if (isStarted)
+                {
+                    loadingTriggered = true;
+                    string loadtext = Manager.isHost
+                        ? "正在加载游戏..."
+                        : "房主已开始游戏 正在加载...";
+
+                    Manager.LoaddingIn(loadtext, () => { });
+                }
+            }
+
+
+
 
             if (Manager?.GetMe() != null) return;
 
@@ -228,6 +262,21 @@ namespace DeadCellsMultiplayerX.Client.UI.Modes
             var pop = new ModalPopUp(Ref<bool>.In(false), null);
             pop.text(text.AsHaxeString(), null, default);
             pop.onClose = retry;
+        }
+
+        void IOnLobbyMenuDisposed.OnLobbyMenuDisposed()
+        {
+            if (loadingTriggered)
+            {
+                Manager.LoaddingOut();
+                loadingTriggered = false;
+            }
+            
+        }
+
+        void IOnServerEnterNewLevel.OnServerEnterNewLevel()
+        {
+            
         }
     }
 }
