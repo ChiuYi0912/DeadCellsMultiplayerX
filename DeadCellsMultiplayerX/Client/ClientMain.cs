@@ -12,7 +12,11 @@ using ModCore.Utilities;
 using DeadCellsMultiplayerX.Client.UI;
 using dc;
 using ModCore.Modules;
-using DeadCellsMultiplayerX.Client.UI.ConnectionMode;
+using DeadCellsMultiplayerX.Client.UI.Modes;
+using ModCore.Events;
+using dc.en;
+using DeadCellsMultiplayerX.Client.Event;
+using DeadCellsMultiplayerX.Server.Events;
 
 namespace DeadCellsMultiplayerX.Client
 {
@@ -26,12 +30,12 @@ namespace DeadCellsMultiplayerX.Client
         /// <summary>
         /// 当前的 Host Client 实例
         /// </summary>
-        public HostClient? CurrentHostClient { get; internal set;  }
+        public HostClient? CurrentHostClient { get; internal set; }
 
         /// <summary>
         /// 连接大厅
         /// </summary>
-        public LobbyMenu? lobby {get;internal set;}
+        public LobbyMenu? lobby { get; internal set; }
 
         //初始化客户端
         public void Init()
@@ -40,9 +44,26 @@ namespace DeadCellsMultiplayerX.Client
 
             Hook_TitleScreen.mainMenu += Hook_TitleScreen_mainMenu;
             Hook__TitleScreen.__constructor__ += Hook__TitleScreen__constructor__;
+            Hook_TitleScreen.onDispose += (orig, self) =>
+            {
+                orig(self);
+                EventSystem.BroadcastEvent<IOnLobbyMenuDisposed>();
+                lobby?.Hide();
+                lobby?.destroy();
+            };
+
+            Hook_Game.init += Hook_Game_init;
         }
 
-        private void Hook_GlowKey_applyGlowData(Hook_GlowKey.orig_applyGlowData orig, GlowKey self, 
+        private void Hook_Game_init(Hook_Game.orig_init orig, dc.pr.Game self)
+        {
+            orig(self);
+            self.gameSignals.heroInitDone.add(new HlAction<Hero>((hero) => EventSystem.BroadcastEvent<IOnGuestHeroInitDone, Hero>(hero)),
+            null, null, null);
+        }
+
+
+        private void Hook_GlowKey_applyGlowData(Hook_GlowKey.orig_applyGlowData orig, GlowKey self,
             int i, Hashlink.Virtuals.virtual_animationIntensity_animationScale_animationSpeed_animationTextureMask_inner_key_outer_power_ glowData)
         {
             if (self.colorsCount__ <= i)
@@ -98,12 +119,12 @@ namespace DeadCellsMultiplayerX.Client
         /// <returns></returns>
         public async Task StartGuest(string ip, int port, string? playerName = null)
         {
-            if(string.IsNullOrEmpty(playerName))
+            if (string.IsNullOrEmpty(playerName))
             {
                 playerName = Environment.UserName;
             }
 
-            if(CurrentGuestClient != null && !CurrentGuestClient.IsDisposed)
+            if (CurrentGuestClient != null && !CurrentGuestClient.IsDisposed)
             {
                 throw new InvalidOperationException();
             }
@@ -118,16 +139,19 @@ namespace DeadCellsMultiplayerX.Client
 
         private void Hook__TitleScreen__constructor__(Hook__TitleScreen.orig___constructor__ orig, TitleScreen arg1, bool? playMusic)
         {
-            lobby = new(this,arg1);
+            lobby = new(this, arg1);
             orig(arg1, playMusic);
 
             lobby.createRootInLayers(Main.Class.ME.root, dc.Const.Class.ROOT_DP_MENU);
             lobby.controllerHelper = new(ModConfig.Config, lobby.config.ControlKeys, arg1.controller.parent);
-            lobby.fControlLabel =new dc.h2d.Flow(null);
+            lobby.fControlLabel = new dc.h2d.Flow(null);
             lobby.setControlLabelKeys();
             lobby.onResize();
-            lobby.RegisterMode(new DefaultPageUI(lobby));
-            lobby.RegisterMode(new SteamPageUI(lobby));
+            lobby.RegisterMode(new DefaultMode(lobby));
+            lobby.RegisterMode(new SteamMode(lobby));
+
+            if (lobby.curTopbts > lobby.modes.Count - 1 || lobby.curTopbts < 0)
+                lobby.curTopbts = 0;
         }
 
         private void Hook_TitleScreen_mainMenu(
@@ -136,7 +160,7 @@ namespace DeadCellsMultiplayerX.Client
             orig(self);
             lobby!.BuildMenuChild("Test_Host", () => Test.Start());
 
-            const int Index =1;
+            const int Index = 1;
 
             int color = (255 << 16) | (215 << 8) | 0;
             lobby!.BuildMenuChild("Online", () => lobby.Show(), color: color);

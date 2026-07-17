@@ -31,6 +31,8 @@ namespace DeadCellsMultiplayerX
 
             new ClientMain().Init();
 
+            GetText.Instance.RegisterMod("DeadCellsMultiplayerX");
+
             //可以捕获到奇怪的报错
             #if DEBUG
             Hook_Boot.mainLoop+= Hook_Boot_mainLoop;

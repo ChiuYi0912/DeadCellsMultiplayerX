@@ -3,12 +3,14 @@ using dc.en;
 using dc.en.inter;
 using dc.pr;
 using dc.tool;
-using DeadCellsMultiplayerX.Client.Guest.Ghost;
+using DeadCellsMultiplayerX.Client.Guest.WorldX;
 using DeadCellsMultiplayerX.Client.Host;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Server;
 using DeadCellsMultiplayerX.Utils;
+using Hashlink.Proxy.Clousre;
 using Microsoft.VisualStudio.Threading;
+using ModCore;
 using ModCore.Events.Interfaces.Game;
 using ModCore.Events.Interfaces.Game.Hero;
 using ModCore.Modules;
@@ -25,7 +27,7 @@ namespace DeadCellsMultiplayerX.Client.Guest
     /// <summary>
     /// 访客的客户端 session
     /// </summary>
-    internal class GuestClientSession(GuestClient client, Stream serverStream) : ClientSession, 
+    internal class GuestClientSession(GuestClient client, Stream serverStream) : ClientSession,
         IGuestRPC,
         IOnFrameUpdate
     {
@@ -33,8 +35,9 @@ namespace DeadCellsMultiplayerX.Client.Guest
         private IServerRPC server = null!;
         private bool isOwner = false;
         private byte[]? saveData;
-        private WorldDirector? worldDirector;
+        private ClientReplicator? replicator;
         private Task? syncTimeStampTask;
+        private readonly List<HashlinkHooks.HookHandle> hooks = [];
 
         private long lastSyncStopwatchTime = 0;
         private long prevStopwatchTime = 0;
@@ -45,9 +48,17 @@ namespace DeadCellsMultiplayerX.Client.Guest
         /// </summary>
         public long CurrentTimeStamp { get; private set; }
 
+        /// <summary>
+        /// 供 Ghost.postUpdate() 等渲染代码读取的同步服务器时间。
+        /// 由 <see cref="IOnFrameUpdate.OnFrameUpdate"/> 在每帧开始时写入。
+        /// 在主线程上运行，无需同步。
+        /// </summary>
+        public static long SyncedTimeMs { get; private set; }
+
         public IServerRPC Server => server ?? throw new InvalidOperationException();
 
         public dc.pr.Game Game => dc.pr.Game.Class.ME;
+        public GuestClient Client { get; private set; } = null!;
 
         public override async Task Init()
         {
@@ -73,6 +84,8 @@ namespace DeadCellsMultiplayerX.Client.Guest
             }
 
             Debug.Assert(client.LobbyInfo != null);
+
+            Client = client;
 
             if (client.LobbyInfo.Owner == client.Guid)
             {
@@ -101,8 +114,13 @@ namespace DeadCellsMultiplayerX.Client.Guest
         {
             Hook__Save.save += Hook__Save_save;
             Hook__File.getBytes += Hook__File_getBytes;
-            Hook__File.getSteamCloudStatus += Hook__File_getSteamCloudStatus;
-            Hook__File.saveSteamCloudStatus += Hook__File_saveSteamCloudStatus;
+
+            if (GameInfo.Platform == GameInfo.PlatformKind.Steam)
+            {
+                HashlinkHooks.Instance.CreateHook("tool.$File", "getSteamCloudStatus", Hook__File_getSteamCloudStatus);
+                HashlinkHooks.Instance.CreateHook("tool.$File", "saveSteamCloudStatus", Hook__File_saveSteamCloudStatus);
+            }
+
             Hook_Game.onDispose += Hook_Game_onDispose;
         }
 
@@ -116,12 +134,12 @@ namespace DeadCellsMultiplayerX.Client.Guest
             Dispose();
         }
 
-        private void Hook__File_saveSteamCloudStatus(Hook__File.orig_saveSteamCloudStatus orig)
+        private void Hook__File_saveSteamCloudStatus(HashlinkClosure orig)
         {
-            
+
         }
 
-        private bool? Hook__File_getSteamCloudStatus(Hook__File.orig_getSteamCloudStatus orig)
+        private bool? Hook__File_getSteamCloudStatus(HashlinkClosure orig)
         {
             return null;
         }
@@ -129,7 +147,7 @@ namespace DeadCellsMultiplayerX.Client.Guest
         private dc.haxe.io.Bytes Hook__File_getBytes(Hook__File.orig_getBytes orig, dc.String file)
         {
             var fn = file.ToString();
-            if(fn.StartsWith("user"))
+            if (fn.StartsWith("user"))
             {
                 Debug.Assert(saveData != null);
 
@@ -142,7 +160,7 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
         private void Hook__Save_save(Hook__Save.orig_save orig, dc.User u, bool onlyGameData)
         {
-            
+
         }
 
         private void Rpc_Disconnected(object? sender, JsonRpcDisconnectedEventArgs e)
@@ -168,13 +186,17 @@ namespace DeadCellsMultiplayerX.Client.Guest
             base.MyDispose();
 
             serverStream?.Dispose();
-            worldDirector?.Dispose();
+            replicator?.Dispose();
             rpc?.Dispose();
 
             Hook__Save.save -= Hook__Save_save;
             Hook__File.getBytes -= Hook__File_getBytes;
-            Hook__File.getSteamCloudStatus -= Hook__File_getSteamCloudStatus;
-            Hook__File.saveSteamCloudStatus -= Hook__File_saveSteamCloudStatus;
+
+            foreach (var v in hooks)
+            {
+                v.Disable();
+            }
+            hooks.Clear();
         }
 
         /// <summary>
@@ -199,11 +221,11 @@ namespace DeadCellsMultiplayerX.Client.Guest
                 DisposeToken.ThrowIfCancellationRequested();
 
                 var g = dc.pr.Game.Class.ME;
-                if(g?.curLevel == null || g.subLevels == null)
+                if (g?.curLevel == null || g.subLevels == null)
                 {
                     continue;
                 }
-                if(!Main.Class.ME.isLoading)
+                if (!Main.Class.ME.isLoading)
                 {
                     break;
                 }
@@ -230,9 +252,9 @@ namespace DeadCellsMultiplayerX.Client.Guest
                 }
             }
 
-            worldDirector?.Dispose();
-            worldDirector = new(this);
-            await worldDirector.Init();
+            replicator?.Dispose();
+            replicator = new(this);
+            replicator.Start();
         }
 
         private void UpdateTimeStamp()
@@ -243,7 +265,7 @@ namespace DeadCellsMultiplayerX.Client.Guest
                 return;
             }
 
-            if(rpc?.IsDisposed ?? true)
+            if (rpc?.IsDisposed ?? true)
             {
                 return;
             }
@@ -251,10 +273,10 @@ namespace DeadCellsMultiplayerX.Client.Guest
             CurrentTimeStamp += stopwatch.ElapsedMilliseconds - prevStopwatchTime;
             prevStopwatchTime = stopwatch.ElapsedMilliseconds;
 
-            if(stopwatch.ElapsedMilliseconds - lastSyncStopwatchTime > 5 * 1000 ||
+            if (stopwatch.ElapsedMilliseconds - lastSyncStopwatchTime > 5 * 1000 ||
                 lastSyncStopwatchTime == 0)
             {
-                if(syncTimeStampTask?.IsCompleted ?? false)
+                if (syncTimeStampTask?.IsCompleted ?? false)
                 {
                     return;
                 }
@@ -267,7 +289,8 @@ namespace DeadCellsMultiplayerX.Client.Guest
                         startTime = stopwatch.ElapsedMilliseconds;
                         var time = await Server.GetTimeStamp();
                         CurrentTimeStamp = time + (stopwatch.ElapsedMilliseconds - startTime) / 2;
-                    }catch(Exception) when (IsDisposed || (rpc?.IsDisposed ?? true))
+                    }
+                    catch (Exception) when (IsDisposed || (rpc?.IsDisposed ?? true))
                     { }
                 }
                 syncTimeStampTask = SyncWithServer();
@@ -279,13 +302,12 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
             // 同步 TimeStamp
             UpdateTimeStamp();
-
-            
+            SyncedTimeMs = CurrentTimeStamp;
         }
 
         public void UpdateEntity(EntityInfo info)
         {
-            worldDirector?.UpdateEntity(info, null);
+            replicator?.ApplyEntityInfo(info, null);
         }
     }
 }

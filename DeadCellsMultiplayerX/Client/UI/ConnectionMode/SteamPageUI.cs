@@ -1,39 +1,32 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using dc.ui;
+using HaxeProxy.Runtime;
+using ModCore.Utilities;
 
-namespace DeadCellsMultiplayerX.Client.UI.ConnectionMode
+namespace DeadCellsMultiplayerX.Client.UI.Modes
 {
-    internal class SteamPageUI : BasePageUI
+    internal class SteamMode : ModeConfig
     {
-        public SteamPageUI(LobbyMenu manager) : base(manager, "SteamP2P")
+        public SteamMode(LobbyMenu manager) : base(manager, "SteamP2P") { }
+
+        public override void BuildContent(FlowBox right, int panelW)
         {
-            
-        }
-        public override void AfterBuildClient()
-        {
-            
+            Manager.LoadImageTorightFlow("DeadCellsMultiplayerX/Image/lobbyTile_2.png");
         }
 
-        public override void AfterBuildHost()
+        public override void OnHost(Action onend) { ShowError(() => { }, "Steam连接暂不可用"); }
+        public override void OnClient(Action canEnter) { ShowError(() => { }, "Steam连接暂不可用"); }
+        public override void Update() { }
+        public override void OnHostLeave() { }
+        public override void OnClientLeave() { }
+        public override void OnHostStartGame() { }
+
+        private void ShowError(HlAction retry, string text = "请输入正确IP及端口")
         {
-            
+            logger.Error(text);
+            var pop = new ModalPopUp(Ref<bool>.In(false), null);
+            pop.text(text.AsHaxeString(), null, default);
+            pop.onClose = retry;
         }
 
-        public override void BeforeBuildClient()
-        {
-            
-        }
-
-        public override void BeforeBuildHost()
-        {
-            
-        }
-
-        public override void update()
-        {
-            
-        }
     }
 }
