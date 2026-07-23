@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using DeadCellsMultiplayerX.Client.Guest.WorldX.TXGuestBeheaded;
 using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Common.Serializers;
 
 namespace DeadCellsMultiplayerX.Client.Guest.WorldX.GuestHero
 {
@@ -17,7 +18,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.GuestHero
         public override void Fill(HeroInfo info)
         {
             var e = Hero;
-            info.PosVector = new PosVector(e.cx, e.cy, e.xr, e.yr, e.dir);
+            info.PosVector = DCMXSerializers.MessagePack.Serialize(new PosVector(e.cx, e.cy, e.xr, e.yr, e.dir));
         }
 
         public override void Initialize()

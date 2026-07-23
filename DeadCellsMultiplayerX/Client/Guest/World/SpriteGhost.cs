@@ -91,16 +91,16 @@ namespace DeadCellsMultiplayerX.Client.Guest.World
                 ghost.get_anim().play(groupName, int.MaxValue, null);
             }
 
-            var delt = (director.Session.CurrentTimeStamp - currentInfo.TimeStamp) / 1000f;
+            //var delt = (director.Session.CurrentTimeStamp - currentInfo.TimeStamp) / 1000f;
 
             var anim = ghost.get_anim();
             //anim.setFrame(currentInfo.Frame);
 
-            if (delt < 0)
-            {
-                delt = 0;
-                return;
-            }
+            // if (delt < 0)
+            // {
+            //     delt = 0;
+            //     return;
+            // }
 
         }
 

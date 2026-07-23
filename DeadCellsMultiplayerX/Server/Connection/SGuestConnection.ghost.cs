@@ -141,13 +141,12 @@ namespace DeadCellsMultiplayerX.Server.Connection
             if (!e.initDone) return;
 
             inf.SubLevelId = e._level.GetSubLevelIndex();
-            inf.EntityData.Serialize(e, typeof(Entity));
             inf.remoteTime = Session.CurrentTimeStamp;
 
 
             if (e.spr != null)
             {
-                inf.PosVector = new PosVector(e.cx, e.cy, e.xr, e.yr, e.dir);
+                inf.PosVector = DCMXSerializers.MessagePack.Serialize(new PosVector(e.cx, e.cy, e.xr, e.yr, e.dir)); 
                 var sinfo = GetSpriteInfo(e.spr);
                 inf.MainSprite = sinfo;
                 FillSpriteInfo(e.spr, inf.GUID, sinfo);

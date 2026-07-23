@@ -107,8 +107,6 @@ namespace DeadCellsMultiplayerX.Client.Guest.World
             prevInfo = currentInfo;
             currentInfo = info;
 
-            info.EntityData.Deserialize(ghost, typeof(Entity));
-
             ghost.setPosCase(ghost.cx, ghost.cy, ghost.xr, ghost.yr);
             ghost.set_targetable(false);
             ghost.circularRepel = 0;

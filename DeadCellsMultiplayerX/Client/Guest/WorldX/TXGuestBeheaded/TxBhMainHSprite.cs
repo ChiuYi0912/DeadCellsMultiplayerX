@@ -22,7 +22,10 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.TXGuestBeheaded
 
             var atlaspath = "atlas/" + info.ColorMapModel + ".atlas";
 
-            info.MainSprite = new SpriteInfo();
+            if (info.MainSprite == null)
+            {
+                info.MainSprite = new SpriteInfo();
+            }
             info.MainSprite.AtlasName = atlaspath;
             info.MainSprite.GroupName = spr.groupName.ToString();
             info.MainSprite.PivotData = DCMXSerializers.MessagePack.Serialize(spr?.pivot);

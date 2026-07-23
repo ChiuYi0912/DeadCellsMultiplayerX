@@ -3,87 +3,74 @@ using MessagePack;
 
 namespace DeadCellsMultiplayerX.Common.Data
 {
-    /// <summary>
-    /// Packed entity position vector for high-frequency network sync.
-    ///
-    /// Original five MessagePack fields (CX, CY, XR, XY, DIR = 224 bits on wire)
-    /// are reduced to three ulong fields (192 bits on wire).  DIR is stored as
-    /// a single bit in PackedA, reducing CY precision from 32 to 31 bits.
-    /// Dead Cells tile coordinates are well under 2^31, so zero observable
-    /// precision is lost.
-    /// 
-    /// Packing layout (PackedA):
-    ///   Bits  0–30 : CX (31-bit unsigned tile X)
-    ///   Bit     31 : DIR (0 = right/1,  1 = left/-1)
-    ///   Bits 32–62 : CY (31-bit unsigned tile Y)
-    ///   Bit     63 : reserved (0)
-    ///
-    /// Packing layout (PackedB):
-    ///   Bits 0–63 : XR raw IEEE-754 double bits
-    ///
-    /// Packing layout (PackedC):
-    ///   Bits 0–63 : XY raw IEEE-754 double bits
-    /// </summary>
     [MessagePackObject]
     public class PosVector
     {
-       
-        [Key(0)] public ulong PackedA;
-        [Key(1)] public ulong PackedB;
-        [Key(2)] public ulong PackedC;
+        [Key(0)] public ulong Packed;
 
-        private const ulong CxMask = (1UL << 31) - 1;          // bits 0–30
-        private const ulong DirMask = 1UL << 31;               // bit  31
-        private const ulong CyMask = ((1UL << 31) - 1) << 32;  // bits 32–62
-        private const int CyShift = 32;
-        private const ulong OnGroundMask = 1UL << 63;  // bit 63
+        private const int CX_BITS = 16;
+        private const int CY_BITS = 16;
+        private const int XR_BITS = 8;
+        private const int XY_BITS = 8;
 
+        private const ulong CX_MASK = (1UL << CX_BITS) - 1;
+        private const ulong CY_MASK = ((1UL << CY_BITS) - 1) << 16;
+        private const ulong DIR_MASK = 1UL << 32;
+        private const ulong XR_MASK = ((1UL << XR_BITS) - 1) << 33;
+        private const ulong XY_MASK = ((1UL << XY_BITS) - 1) << 41;
+
+        private const int CY_SHIFT = 16;
+        private const int DIR_SHIFT = 32;
+        private const int XR_SHIFT = 33;
+        private const int XY_SHIFT = 41;
 
         [IgnoreMember]
         public int CX
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (int)(PackedA & CxMask);
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => PackedA = (PackedA & ~CxMask) | ((ulong)value & CxMask);
+            get => (int)(Packed & CX_MASK);
+            set => Packed = (Packed & ~CX_MASK) | ((ulong)value & CX_MASK);
         }
 
         [IgnoreMember]
         public int CY
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => (int)((PackedA & CyMask) >> CyShift);
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => PackedA = (PackedA & ~CyMask) | (((ulong)value << CyShift) & CyMask);
+            get => (int)((Packed & CY_MASK) >> CY_SHIFT);
+            set => Packed = (Packed & ~CY_MASK) | (((ulong)value << CY_SHIFT) & CY_MASK);
         }
 
         [IgnoreMember]
         public double XR
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => BitConverter.Int64BitsToDouble((long)PackedB);
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => PackedB = (ulong)BitConverter.DoubleToInt64Bits(value);
+            get => ((Packed & XR_MASK) >> XR_SHIFT) / 255.0;
+            set
+            {
+                byte quant = (byte)(value * 255.0);
+                Packed = (Packed & ~XR_MASK) | ((ulong)quant << XR_SHIFT);
+            }
         }
 
         [IgnoreMember]
         public double XY
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => BitConverter.Int64BitsToDouble((long)PackedC);
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => PackedC = (ulong)BitConverter.DoubleToInt64Bits(value);
+            get => ((Packed & XY_MASK) >> XY_SHIFT) / 255.0;
+            set
+            {
+                byte quant = (byte)(value * 255.0);
+                Packed = (Packed & ~XY_MASK) | ((ulong)quant << XY_SHIFT);
+            }
         }
 
         [IgnoreMember]
         public int DIR
         {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => ((PackedA & DirMask) != 0) ? -1 : 1;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => PackedA = value < 0
-                ? (PackedA | DirMask)
-                : (PackedA & ~DirMask);
+            get => (Packed & DIR_MASK) != 0 ? -1 : 1;
+            set
+            {
+                if (value < 0)
+                    Packed |= DIR_MASK;
+                else
+                    Packed &= ~DIR_MASK;
+            }
         }
 
         public PosVector() { }

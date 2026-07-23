@@ -8,7 +8,6 @@ namespace DeadCellsMultiplayerX.Common.Data
     {
         public string GUID { get; set; } = Guid.NewGuid().ToString();
         public string? Parent { get; set; }
-        public long TimeStamp { get; set; } = 0;
         public string AtlasName { get; set; } = "";
         public string GroupName { get; set; } = "";
         public byte[] PivotData { get; set; } = [];

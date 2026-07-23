@@ -48,6 +48,10 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entities
         private double localTimescale; // 时间缩放因子，用于追赶/减速，当前恒为1.0
         private ExponentialMovingAverage driftEma = new(10); // 漂移量（latestRemoteTime - localTimeline）的指数移动平均
         private ExponentialMovingAverage deliveryTimeEma = new(10); // 快照交付间隔的指数移动平均，备用动态缓冲调整
+        private double deliveryTimeVariance = 0.0;      // 动态 bufferTime 所需
+        private const double alphaStd = 0.1;            // 标准差指数平滑系数
+        private const double toleranceMultiplier = 1.2;  // 安全冗余倍数
+        private const double bufferSmoothFactor = 0.05;  // bufferTime 平滑系数，防止突变
 
 
         private const double TilePx = 24.0;
@@ -137,6 +141,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entities
 
         public void ApplyUpdate(EntityInfo incoming)
         {
+            if (incoming == null) return;
             if (spr == null) return;
 
             double remoteSeconds = incoming.remoteTime / 1000.0;
@@ -148,6 +153,8 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entities
                 remoteTime = remoteSeconds,
                 localTime = localSeconds
             };
+
+            int beforeCount = snapshotBuffer.Count;
 
             SnapshotInterpolation.InsertAndAdjust(
                 snapshotBuffer,
@@ -164,6 +171,35 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entities
                 catchupPositiveThreshold,
                 ref deliveryTimeEma
             );
+
+            // 只有在真正插入新快照且缓冲至少有两个快照时才更新统计
+            if (snapshotBuffer.Count > beforeCount && snapshotBuffer.Count >= 2)
+            {
+                // 最近两次快照的本地到达时间差
+                double prevLocal = snapshotBuffer.Values[snapshotBuffer.Count - 2].localTime;
+                double latestLocal = snapshotBuffer.Values[snapshotBuffer.Count - 1].localTime;
+                double interval = latestLocal - prevLocal;
+
+                // 获取平均交付时间
+                double avg = deliveryTimeEma.Value;
+                if (double.IsNaN(avg) || double.IsInfinity(avg))
+                    avg = sendInterval;
+
+                // 更新指数移动方差
+                double diff = interval - avg;
+                deliveryTimeVariance = (1 - alphaStd) * deliveryTimeVariance + alphaStd * diff * diff;
+                double stdDev = System.Math.Sqrt(System.Math.Max(0, deliveryTimeVariance));
+
+                // 计算安全缓冲倍数（DynamicAdjustment 返回 double，调用静态方法无需空检查）
+                double safeMultiplier = SnapshotInterpolation.DynamicAdjustment(
+                    sendInterval, stdDev, toleranceMultiplier);
+
+                // 至少保留 2 个快照的时间
+                double targetBufferTime = System.Math.Max(sendInterval * 2, sendInterval * safeMultiplier);
+
+                // 避免 bufferTime 突变引起插值跳跃
+                bufferTime += (targetBufferTime - bufferTime) * bufferSmoothFactor;
+            }
         }
 
         public void UpdateAnim(EntityInfo info)
@@ -201,17 +237,22 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entities
                 ref localTimeline, localTimescale,
                 out GhostSnapshot from, out GhostSnapshot to, out double t);
 
+            var Posfrom = DCMXSerializers.MessagePack.Deserialize<PosVector>(from.State.PosVector);
+            var Posto = DCMXSerializers.MessagePack.Deserialize<PosVector>(to.State.PosVector);
+
+            if (Posfrom == null || Posto == null) return;
+
             // 将格子坐标和归一化偏移转换为全局像素坐标，避免跨格子插值失真
-            double fromPx = from.State.PosVector.CX * TilePx + from.State.PosVector.XR * TilePx;
-            double fromPy = from.State.PosVector.CY * TilePx + from.State.PosVector.XY * TilePx;
-            double toPx = to.State.PosVector.CX * TilePx + to.State.PosVector.XR * TilePx;
-            double toPy = to.State.PosVector.CY * TilePx + to.State.PosVector.XY * TilePx;
+            double fromPx = Posfrom.CX * TilePx + Posfrom.XR * TilePx;
+            double fromPy = Posfrom.CY * TilePx + Posfrom.XY * TilePx;
+            double toPx = Posto.CX * TilePx + Posto.XR * TilePx;
+            double toPy = Posto.CY * TilePx + Posto.XY * TilePx;
 
             // 在像素空间线性插值，得到当前帧的目标位置
             double targetX = fromPx + (toPx - fromPx) * t;
             double targetY = fromPy + (toPy - fromPy) * t;
 
-            dir = to.State.PosVector.DIR;
+            dir = Posto.DIR;
 
             //传送检测
             if (!visualInit ||

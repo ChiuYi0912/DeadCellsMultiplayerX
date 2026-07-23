@@ -69,7 +69,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.GuestHero
         private void CaptureCurrentState()
         {
             var spr = Hero.spr;
-            if (anim.stack.length > 0)
+            if (anim.stack?.length > 0)
             {
                 var inst = anim.stack.getDyn(0) as AnimInstance;
                 if (inst != null)

@@ -23,8 +23,7 @@ namespace DeadCellsMultiplayerX.Common.Data
 
         public int SubLevelId { get; set; }
 
-        public PosVector PosVector = new(0, 0, 0, 0, 1);
-        public SimpleObjData EntityData { get; set; } = new();
+        public byte[] PosVector = [];
         public Dictionary<int, byte[]> GlowData { get; set; } = [];
         public SpriteInfo? MainSprite { get; set; }
         public AnimInfo animInfo { get; set; } = new();

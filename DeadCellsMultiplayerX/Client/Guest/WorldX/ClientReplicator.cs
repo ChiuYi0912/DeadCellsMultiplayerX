@@ -57,7 +57,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
 
             while (true)
             {
-                await Task.Delay(1000 / 60);
+                await Task.Delay((int)(1000 / 62.5));
                 // TODO: 接入 DisposeToken
                 session.DisposeToken.ThrowIfCancellationRequested();
 
