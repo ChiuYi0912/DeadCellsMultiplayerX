@@ -61,5 +61,6 @@ namespace DeadCellsMultiplayerX.Server
         public Task<long> GetTimeStamp();
 
         public Task<bool> CheckVersion(string version);
+
     }
 }

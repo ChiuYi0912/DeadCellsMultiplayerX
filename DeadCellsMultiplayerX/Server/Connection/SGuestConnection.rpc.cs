@@ -113,7 +113,7 @@ namespace DeadCellsMultiplayerX.Server.Connection
 
                 foreach (Entity v in lvl.entities)
                 {
-                    if (v is Interactive)
+                    if (v is not Mob)
                     {
                         continue;
                     }
@@ -131,11 +131,11 @@ namespace DeadCellsMultiplayerX.Server.Connection
                 }
             }
 
-            foreach (var item in await Session.GetGuestsHeroInfos())
-            {
-                item.remoteTime = Session.CurrentTimeStamp;
-                areaInfo.Entities.Add(item);
-            }
+            // foreach (var item in await Session.GetGuestsHeroInfos())
+            // {
+            //     item.remoteTime = Session.CurrentTimeStamp;
+            //     areaInfo.Entities.Add(item);
+            // }
 
             return areaInfo;
         }
@@ -151,7 +151,6 @@ namespace DeadCellsMultiplayerX.Server.Connection
         {
             return Task.FromResult(Session.CurrentTimeStamp);
         }
-
 
     }
 }

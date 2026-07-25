@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using dc;
 using dc.libs.heaps.slib;
 using dc.pr;
 using DeadCellsMultiplayerX.Client.Guest.WorldX.Entities;
+using DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Server;
@@ -127,7 +129,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
                 info.localTime = session.CurrentTimeStamp;
                 ApplyEntityInfo(info, lvl);
             }
-                
+
         }
 
         public void ApplyEntityInfo(EntityInfo info, Level? lvl = null)
@@ -136,7 +138,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
 
             if (!ghosts.TryGetValue(info.GUID, out var ghost))
             {
-                ghost = new EntityGhost(lvl, info.GUID);
+                ghost = new Ghost(lvl, info.GUID);
                 ghost.init(info, this);
                 ghosts.Add(info.GUID, ghost);
             }

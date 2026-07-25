@@ -2,6 +2,7 @@
 using dc.en;
 using dc.h3d.mat;
 using dc.haxe.io;
+using dc.hxbit;
 using dc.hxd;
 using dc.hxd.res;
 using dc.hxsl;
@@ -109,6 +110,21 @@ namespace DeadCellsMultiplayerX.Server
             Hook_Entity.dispose += Hook_Entity_dispose;
 
             //Hook_Game.init += Hook_Game_init;
+
+            Hook_Level.attachMob += Hook_Level_attachMob;
+        }
+
+
+
+
+
+        private dc.en.Mob Hook_Level_attachMob(Hook_Level.orig_attachMob orig, Level self, dc.level.Mob m)
+        {
+            var mob = orig(self, m);
+
+            EventSystem.BroadcastEvent<IOnAttachMob, IOnAttachMob.Data>(new(m, mob));
+
+            return mob;
         }
 
         private void Hook_Game_init(Hook_Game.orig_init orig, dc.pr.Game self)

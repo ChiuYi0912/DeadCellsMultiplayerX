@@ -5,14 +5,17 @@ using dc.hxd.res;
 using dc.libs.heaps.slib;
 using dc.pr;
 using dc.tool;
+using DeadCellsMultiplayerX.Client.Event;
 using DeadCellsMultiplayerX.Client.Guest.WorldX;
 using DeadCellsMultiplayerX.Client.Host;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Server;
+using DeadCellsMultiplayerX.Server.WorldX;
 using DeadCellsMultiplayerX.Utils;
 using Hashlink.Proxy.Clousre;
 using Microsoft.VisualStudio.Threading;
 using ModCore;
+using ModCore.Events;
 using ModCore.Events.Interfaces.Game;
 using ModCore.Events.Interfaces.Game.Hero;
 using ModCore.Modules;
@@ -23,6 +26,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
 
 namespace DeadCellsMultiplayerX.Client.Guest
 {
@@ -61,6 +65,7 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
         public dc.pr.Game Game => dc.pr.Game.Class.ME;
         public GuestClient Client { get; private set; } = null!;
+        public WorldXDataReceive worldXData { get; set; } = null!;
 
         public override async Task Init()
         {
@@ -108,7 +113,10 @@ namespace DeadCellsMultiplayerX.Client.Guest
                 Debug.Assert(System.IO.File.Exists(fp));
 
                 await server.UploadSavedata(await System.IO.File.ReadAllBytesAsync(fp));
+
+
             }
+
 
         }
 
@@ -124,6 +132,11 @@ namespace DeadCellsMultiplayerX.Client.Guest
             }
 
             Hook_Game.onDispose += Hook_Game_onDispose;
+            Hook_Mob.aiLocked += Hook_Mob_aiLocked;
+        }
+        private bool Hook_Mob_aiLocked(Hook_Mob.orig_aiLocked orig, Mob self)
+        {
+            return true;
         }
 
         private void Hook_Game_onDispose(Hook_Game.orig_onDispose orig, dc.pr.Game self)
@@ -246,7 +259,11 @@ namespace DeadCellsMultiplayerX.Client.Guest
                     {
                         continue;
                     }
-                    entities.Add(v);
+                    if (v is Mob)
+                    {
+                        entities.Add(v);
+                    }
+
                 }
                 foreach (var v in entities)
                 {
@@ -254,9 +271,23 @@ namespace DeadCellsMultiplayerX.Client.Guest
                 }
             }
 
+            // #if true
+            //             Debug.Assert(client.gameSessionInfo != null);
+            //             var options = new JsonSerializerOptions { WriteIndented = true };
+            //             Logger.Information("sever mobs  {info}\n", JsonSerializer.Serialize(client.gameSessionInfo, options));
+            // #endif
+
+
             replicator?.Dispose();
             replicator = new(this);
             replicator.Start();
+
+            Debug.Assert(rpc != null);
+
+            worldXData?.Dispose();
+            worldXData = new(rpc);
+
+            await worldXData.Init();
         }
 
         private void UpdateTimeStamp()

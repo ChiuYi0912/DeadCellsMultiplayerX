@@ -6,6 +6,7 @@ using dc.libs.heaps.slib._AnimManager;
 using dc.tool.mainSkills;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Common.Serializers;
+using DeadCellsMultiplayerX.Server.Events;
 using DeadCellsMultiplayerX.Utils;
 using Hashlink.Virtuals;
 using HaxeProxy.Runtime;
@@ -146,7 +147,7 @@ namespace DeadCellsMultiplayerX.Server.Connection
 
             if (e.spr != null)
             {
-                inf.PosVector = DCMXSerializers.MessagePack.Serialize(new PosVector(e.cx, e.cy, e.xr, e.yr, e.dir)); 
+                inf.PosVector = DCMXSerializers.MessagePack.Serialize(new PosVector(e.cx, e.cy, e.xr, e.yr, e.dir));
                 var sinfo = GetSpriteInfo(e.spr);
                 inf.MainSprite = sinfo;
                 FillSpriteInfo(e.spr, inf.GUID, sinfo);
@@ -192,5 +193,6 @@ namespace DeadCellsMultiplayerX.Server.Connection
             }
             return false;
         }
+
     }
 }

@@ -20,9 +20,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
     {
         private readonly GuestClientSession session;
         public readonly ILogger logger;
-        public PlayerGhost? RemoteHero { get; private set; }
         public GuestInfo? GuestInfo { get; private set; }
-        public PlyerGameSessionInfo? plyerGameInfo { get; private set; }
         public Hero? hero { get; set; }
         public CancellationTokenSource loopCts = default!;
         public string? RemoteSkinId { get; private set; }
@@ -62,22 +60,16 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
             Debug.Assert(session.Client.LobbyInfo != null);
             Debug.Assert(guid != null);
 
-            // Tell host hero init is done
-            await session.Client.HeroInitDone(true);
             heroReady = true;
 
             // Refresh full state from host (for any other changes)
             await session.Client.RefreshLobbyInfo();
-            await session.Client.RefreshGameSessionInfo();
 
             // Always populate GuestInfo for all players
             GuestInfo = GetCurrentGuestInfo();
-            plyerGameInfo = GetCurrnetGameSessionInfo();
-
 
             var options = new JsonSerializerOptions { WriteIndented = true };
             logger.Information("\n GuestInfo: {Json}", JsonSerializer.Serialize(GuestInfo, options));
-            logger.Information("\n Game Base info {F1},", JsonSerializer.Serialize(plyerGameInfo, options));
 
 
             Register(new TxBhAnimation(session, this));
@@ -102,13 +94,10 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
                 if (hero == null || hero.destroyed || !hero.initDone)
                 {
                     heroReady = false;
-                    await session.Client.HeroInitDone(heroReady);
                 }
 
                 await Task.Delay(1000);
 
-
-                await session.Client.RefreshGameSessionInfo();
             }
         }
 
@@ -169,30 +158,13 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
             return null;
         }
 
-        public PlyerGameSessionInfo? GetCurrnetGameSessionInfo()
-        {
-            Debug.Assert(session.Client.gameSessionInfo != null);
-            Debug.Assert(guid != null);
-
-            if (session.Client.gameSessionInfo.PlyerGameSession.TryGetValue(guid, out var info))
-            {
-                plyerGameInfo = info;
-                return plyerGameInfo;
-            }
-
-            logger.Warning("Guest {guid} not found in GameSessionInfo.PlyerGameSession", guid);
-            return null;
-        }
-
 
         public void Clear()
         {
             loopCts.Cancel();
             loopCts.Dispose();
             loopCts = null!;
-            RemoteHero?.destroy();
             hero = null;
-            RemoteHero = null;
             RemoteSkinId = null;
             RemoteHeadSkinId = null;
             GuestInfo = null;

@@ -16,11 +16,6 @@ namespace DeadCellsMultiplayerX.Client.Host
         /// <returns></returns>
         public Task<LobbyInfo> GetLobbyInfo();
 
-        /// <summary>
-        /// 获取游戏时基本信息
-        /// </summary>
-        /// <returns></returns>
-        public Task<GameSessionInfo> GetGameSessionInfo();
 
         /// <summary>
         /// 获取当前玩家的 GUID
@@ -53,12 +48,6 @@ namespace DeadCellsMultiplayerX.Client.Host
         /// 延迟
         /// </summary>
         public Task Ping();
-
-        /// <summary>
-        /// 玩家英雄以初始化
-        /// </summary>
-        /// <param name="InitDone"></param>
-        public void HeroInitDone(bool InitDone);
 
         public Task<Stream> GetServerStream();
     }

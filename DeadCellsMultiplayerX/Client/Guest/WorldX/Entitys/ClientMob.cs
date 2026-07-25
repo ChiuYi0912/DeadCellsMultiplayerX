@@ -1,32 +1,28 @@
-using dc;
-using dc.libs;
-using dc.libs.heaps.slib;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
+using dc.en;
 using dc.libs.heaps.slib._AnimManager;
-using dc.libs.misc;
-using dc.pr;
-using Hashlink.Virtuals;
-using HaxeProxy.Runtime;
-using ModCore.Utilities;
+using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Common.Serializers;
-using Serilog.Core;
-using Serilog;
+using HaxeProxy.Runtime;
 using Mirror;
-using System.Timers;
-using dc.hxd;
-using DeadCellsMultiplayerX.Common;
+using ModCore.Utilities;
 
-namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entities
+namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
 {
-    public class Ghost : Entity
+    public class ClientMob : DisposableEventReceiver
     {
-        public string GUID { get; }
-
-        private string? lastColorMapModel;
-        private string? lastColorMapSkin;
-        private string lastGroup = "";
+        public readonly Mob mob;
+        public readonly string GUID;
 
         private dc.libs.Process? interpolationProcess; //挂载位置渲染程序
+
+        private string lastGroup = "";
+
 
 
         private double visualX, visualY;   // 实际渲染位置
@@ -56,91 +52,27 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entities
 
         private const double TilePx = 24.0;
 
-        public Ghost(Level lvl, string guid) : base(lvl, 0, 0)
+        public ClientMob(Mob mob, string guid)
         {
-            GUID = guid;
-        }
+            this.mob = mob;
+            this.GUID = guid;
 
-        internal void init(EntityInfo info, ClientReplicator client)
-        {
-            const double fps = 60.0;
-            delayer = new Delayer(fps);
-            tw = new Tweenie(fps);
-            createAttackSource();
-            createAttackTarget();
-            initGfx(info, client);
-            DisableGameplay();
-            //easeSpritePos = false;
-            initClonesGfx();
-            if (_level != null && _level.minimap != null && !_level.minimap.destroyed)
-                minimapTracking();
-
-            interpolationProcess = new dc.libs.Process(_level);
+            interpolationProcess = new dc.libs.Process(mob._level);
             interpolationProcess.onUpdateCb = new HlAction(OnInterpolationUpdate);
 
-            DisableGameplay();
+            
 
-            initDone = true;
-            isOnScreen = false;
-            isOutOfGame = true;
-            if (!isInQuadTree()) return;
-            _level?.qTree.tryInsert(cx, cy, this);
+            Debug.Assert(mob != null);
+            Debug.Assert(guid != null);
         }
 
-        internal void initGfx(EntityInfo info, ClientReplicator client)
-        {
-            base.initGfx();
-
-            if (info != null && info.MainSprite != null)
-            {
-                var sprlib = client.GetSpriteLib(info.MainSprite.AtlasName);
-                var group = info.MainSprite.GroupName.AsHaxeString();
-                dc.h3d.mat.Texture normalMapFromGroup = sprlib.getNormalMapFromGroup(group);
-                initSprite(sprlib, group, null, null, null, true, null, normalMapFromGroup);
-
-
-                spr.pivot.copyFrom(DCMXSerializers.MessagePack.Deserialize<SpritePivot>(info.MainSprite.PivotData));
-
-                lastColorMapModel = info.ColorMapModel;
-                lastColorMapSkin = info.ColorMapSkin;
-                setColorMap(lastColorMapModel?.AsHaxeString(),
-                 lastColorMapSkin?.AsHaxeString(), null);
-
-                if (info.GlowData != null)
-                {
-                    foreach ((var idx, var gdd) in info.GlowData)
-                    {
-                        if (gdd == null) continue;
-                        setGlowData(idx, DCMXSerializers.MessagePack.Deserialize<virtual_animationIntensity_animationScale_animationSpeed_animationTextureMask_inner_key_outer_power_>(gdd), spr);
-                    }
-                }
-
-
-                if (info.animInfo.AnimTransitions != null)
-                {
-                    foreach (AnimTransitions transition in info.animInfo.AnimTransitions)
-                    {
-                        dc.String? from = transition.From?.AsHaxeString();
-                        dc.String? to = transition.To?.AsHaxeString();
-                        dc.String? a = transition.Anim?.AsHaxeString();
-
-                        spr.get_anim().registerTransition(
-                            from,
-                            to,
-                            a,
-                            transition.speed,
-                            transition.reverse,
-                            null
-                        );
-                    }
-                }
-            }
-        }
 
         public void ApplyUpdate(EntityInfo incoming)
         {
             if (incoming == null) return;
-            if (spr == null) return;
+            if (mob.spr == null) return;
+
+            //mob.say("hello".AsHaxeString(), null, null, null);
 
             double remoteSeconds = incoming.remoteTime / 1000.0;
             double localSeconds = GuestClientSession.SyncedTimeMs / 1000.0;
@@ -203,9 +135,9 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entities
         public void UpdateAnim(EntityInfo info)
         {
             var animinfo = info.animInfo;
-            var anim = spr.get_anim();
+            var anim = mob.spr.get_anim();
 
-            if (spr == null || info == null || info.MainSprite == null || animinfo == null || anim == null) return;
+            if (mob.spr == null || info == null || info.MainSprite == null || animinfo == null || anim == null) return;
 
             var stack = anim.stack.getDyn(0) as AnimInstance;
             if (lastGroup != info.MainSprite.GroupName)
@@ -250,7 +182,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entities
             double targetX = fromPx + (toPx - fromPx) * t;
             double targetY = fromPy + (toPy - fromPy) * t;
 
-            dir = Posto.DIR;
+            mob.dir = Posto.DIR;
 
             //传送检测
             if (!visualInit ||
@@ -282,22 +214,11 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entities
                 }
             }
 
-            
-            setPosPixel(visualX, visualY);
-            
+
+            mob.setPosPixel(visualX, visualY);
+
             //同时更新位置避免位置与动画不同步
             UpdateAnim(from.State);
-        }
-
-
-        protected void DisableGameplay()
-        {
-            //set_targetable(false);
-            circularRepel = 0;
-            hasRepelling = false;
-            detectsWater = false;
-            hasGravity = false;
-            gravity = 0;
         }
     }
 }

@@ -30,10 +30,6 @@ namespace DeadCellsMultiplayerX.Client.Host
         /// </summary>
         public LobbyInfo LobbyInfo { get; set; } = new();
 
-        /// <summary>
-        /// 游戏时基本信息
-        /// </summary>
-        public GameSessionInfo GameSessionInfo { get; set; } = new();
 
         /// <summary>
         /// 是否可以开始游戏

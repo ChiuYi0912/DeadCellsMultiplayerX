@@ -21,7 +21,6 @@ namespace DeadCellsMultiplayerX.Client.Host
 
         private JsonRpc? rpc;
         public GuestInfo guestInfo = new();
-        public PlyerGameSessionInfo plyerGameinfo = new();
         public override ILogger Logger { get; }
 
         public GuestConnection(HostClient host, BaseNetworkConnection connection)
@@ -37,7 +36,6 @@ namespace DeadCellsMultiplayerX.Client.Host
             EventSystem.BroadcastEvent<IOnGuestQuit, GuestInfo>(guestInfo);
 
             host.LobbyInfo.Guests.Remove(guestInfo.Guid);
-            host.GameSessionInfo.PlyerGameSession.Remove(guestInfo.Guid);
             rpc?.Dispose();
         }
 
@@ -45,7 +43,6 @@ namespace DeadCellsMultiplayerX.Client.Host
         {
 
             host.LobbyInfo.Guests.Add(guestInfo.Guid, guestInfo);
-            host.GameSessionInfo.PlyerGameSession.Add(guestInfo.Guid, plyerGameinfo);
 
             rpc = connection.Stream.CreateJsonRpc();
 
@@ -77,10 +74,6 @@ namespace DeadCellsMultiplayerX.Client.Host
             return Task.FromResult(host.LobbyInfo);
         }
 
-        public Task<GameSessionInfo> GetGameSessionInfo()
-        {
-            return Task.FromResult(host.GameSessionInfo);
-        }
 
         public void SetName(string name)
         {
@@ -130,11 +123,6 @@ namespace DeadCellsMultiplayerX.Client.Host
 
         public Task Ping() => Task.CompletedTask;
 
-        public void HeroInitDone(bool InitDone)
-        {
-            Logger.Information("Hero Init Done as '{F1}'", guestInfo.Guid);
-            plyerGameinfo.HeroInitDone = InitDone;
-        }
 
         public Task<Stream> GetServerStream()
         {

@@ -25,7 +25,6 @@ namespace DeadCellsMultiplayerX.Client.Guest
         public CancellationTokenSource DisconnectToken { get; } = new();
 
         public LobbyInfo? LobbyInfo { get; set; }
-        public GameSessionInfo? gameSessionInfo { get; set; }
 
         public string Guid { get; set; } = "";
 
@@ -55,7 +54,6 @@ namespace DeadCellsMultiplayerX.Client.Guest
             SetReady(false);
 
             LobbyInfo = await hostInterfact.GetLobbyInfo();
-            gameSessionInfo = await hostInterfact.GetGameSessionInfo();
             _ = MessageLoop();
         }
 
@@ -69,7 +67,6 @@ namespace DeadCellsMultiplayerX.Client.Guest
                 DisposeToken.ThrowIfCancellationRequested();
 
                 LobbyInfo = await hostInterfact.GetLobbyInfo();
-                gameSessionInfo = await hostInterfact.GetGameSessionInfo();
 
                 if (LobbyInfo.CanConnectServer)
                 {
@@ -120,12 +117,6 @@ namespace DeadCellsMultiplayerX.Client.Guest
             return hostInterfact.SetSkinMould(skinMould);
         }
 
-        public Task HeroInitDone(bool initdone)
-        {
-            Debug.Assert(hostInterfact != null);
-            hostInterfact.HeroInitDone(true);
-            return Task.CompletedTask;
-        }
 
         public async Task<long> Ping()
         {
@@ -144,11 +135,6 @@ namespace DeadCellsMultiplayerX.Client.Guest
             LobbyInfo = await hostInterfact.GetLobbyInfo();
         }
 
-        public async Task RefreshGameSessionInfo()
-        {
-            Debug.Assert(hostInterfact != null);
-            gameSessionInfo = await hostInterfact.GetGameSessionInfo();
-        }
 
         public void Quit()
         {

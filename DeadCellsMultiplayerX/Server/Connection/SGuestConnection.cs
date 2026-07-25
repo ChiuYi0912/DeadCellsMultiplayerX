@@ -8,6 +8,7 @@ using DeadCellsMultiplayerX.Client.Networks;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Server.Events;
+using DeadCellsMultiplayerX.Server.WorldX;
 using DeadCellsMultiplayerX.Utils;
 using Hashlink.Virtuals;
 using Microsoft.VisualStudio.Threading;
@@ -45,7 +46,7 @@ namespace DeadCellsMultiplayerX.Server.Connection
         public ServerMainThread Main => Session.Main;
         public IGuestRPC guest;
         private bool EnterNewLevelEnd { get; set; } = false;
-
+        private WorldXDataDirector worldXDataDirector = new();
 
         public SGuestConnection(ServerSession session, Stream connection)
         {
@@ -55,6 +56,8 @@ namespace DeadCellsMultiplayerX.Server.Connection
             rpc = connection.CreateJsonRpc();
 
             rpc.AddLocalRpcTarget(this);
+            var opt = new JsonRpcTargetOptions();
+            rpc.AddLocalRpcTarget<IWorldDataRPC>(worldXDataDirector, opt);
 
             guest = rpc.Attach<IGuestRPC>();
 
@@ -93,7 +96,7 @@ namespace DeadCellsMultiplayerX.Server.Connection
             guest.EnterNewLevel(File.ReadAllBytes(Main.savePath));
 
             EnterNewLevelEnd = true;
-            
+
             EventSystem.BroadcastEvent<IOnHeroInitDone, Hero>(Game.Instance.HeroInstance!);
         }
 
@@ -116,5 +119,7 @@ namespace DeadCellsMultiplayerX.Server.Connection
         {
             //entitiesInfo.Remove(e.HashlinkPointer);
         }
+
+
     }
 }
