@@ -1,4 +1,5 @@
 using System.Buffers;
+using dc.level;
 using DeadCellsMultiplayerX.Common.Serializers.Data;
 using MessagePack;
 using MessagePack.Resolvers;
@@ -16,7 +17,8 @@ namespace DeadCellsMultiplayerX.Common.Serializers
                     CompositeResolver.Create(
                         [
                             new H3DVectorFormatter(),
-                            new H3DTextureFormatter()
+                            new H3DTextureFormatter(),
+                            new HxbitMessagePackFormatter<Mob>(Mob.Class,Mob.Class.__clid)
                         ],
                         [
                             ContractlessStandardResolver.Instance,
