@@ -2,6 +2,7 @@
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Server.Connection;
+using DeadCellsMultiplayerX.Server.WorldX;
 using Microsoft.VisualStudio.Threading;
 using ModCore;
 using ModCore.Events.Interfaces.Game;
@@ -93,17 +94,6 @@ namespace DeadCellsMultiplayerX.Server
             }
         }
 
-
-        public async Task<List<HeroInfo>> GetGuestsHeroInfos()
-        {
-            List<HeroInfo> infos = [];
-            foreach (var item in guests)
-            {
-                infos.Add(await item.guest.RequestHeroInfo());
-            }
-
-            return infos;
-        }
 
         private void UpdateTimeStamp()
         {

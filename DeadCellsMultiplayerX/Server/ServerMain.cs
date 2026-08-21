@@ -112,11 +112,16 @@ namespace DeadCellsMultiplayerX.Server
             //Hook_Game.init += Hook_Game_init;
 
             Hook_Level.attachMob += Hook_Level_attachMob;
+            Hook__Mob.create += Hook__Mob_create;
         }
 
+        private Mob Hook__Mob_create(Hook__Mob.orig_create orig, dc.String k, Level level, int cx, int cy, int dmgTier, Ref<int> lifeTier)
+        {
+            var mob = orig(k, level, cx, cy, dmgTier, lifeTier);
 
-
-
+            EventSystem.BroadcastEvent<IOnCreateMob, IOnCreateMob.Data>(new(mob, k, cx, cy, dmgTier, lifeTier.value));
+            return mob;
+        }
 
         private dc.en.Mob Hook_Level_attachMob(Hook_Level.orig_attachMob orig, Level self, dc.level.Mob m)
         {

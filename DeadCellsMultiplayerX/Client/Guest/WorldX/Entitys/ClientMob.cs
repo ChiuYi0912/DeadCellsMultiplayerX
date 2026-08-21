@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using dc;
 using dc.en;
 using dc.libs.heaps.slib._AnimManager;
 using DeadCellsMultiplayerX.Common;
@@ -57,10 +58,14 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
             this.mob = mob;
             this.GUID = guid;
 
+            mob.circularRepel = 0;
+            mob.hasRepelling = false;
+            mob.collisionMode = new CollisionMode.None();
+
             interpolationProcess = new dc.libs.Process(mob._level);
             interpolationProcess.onUpdateCb = new HlAction(OnInterpolationUpdate);
 
-            
+
 
             Debug.Assert(mob != null);
             Debug.Assert(guid != null);
@@ -135,9 +140,11 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
         public void UpdateAnim(EntityInfo info)
         {
             var animinfo = info.animInfo;
+            if (mob.spr == null) return;
+
             var anim = mob.spr.get_anim();
 
-            if (mob.spr == null || info == null || info.MainSprite == null || animinfo == null || anim == null) return;
+            if (info == null || info.MainSprite == null || animinfo == null || anim == null) return;
 
             var stack = anim.stack.getDyn(0) as AnimInstance;
             if (lastGroup != info.MainSprite.GroupName)
@@ -167,8 +174,8 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
                 ref localTimeline, localTimescale,
                 out GhostSnapshot from, out GhostSnapshot to, out double t);
 
-            var Posfrom = DCMXSerializers.MessagePack.Deserialize<PosVector>(from.State.PosVector);
-            var Posto = DCMXSerializers.MessagePack.Deserialize<PosVector>(to.State.PosVector);
+            var Posfrom = from.State.PosVector;
+            var Posto = to.State.PosVector;
 
             if (Posfrom == null || Posto == null) return;
 

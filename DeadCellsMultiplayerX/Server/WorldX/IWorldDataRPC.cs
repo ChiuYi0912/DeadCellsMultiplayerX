@@ -11,6 +11,10 @@ namespace DeadCellsMultiplayerX.Server.WorldX
     internal partial interface IWorldDataRPC
     {
         public Task<string> Test();
+
+
+        public Task<Dictionary<string, byte[]>> GetLevelMobs();
+
     }
 }
 

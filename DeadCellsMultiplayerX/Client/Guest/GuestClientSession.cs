@@ -270,7 +270,6 @@ namespace DeadCellsMultiplayerX.Client.Guest
                     v.destroy();
                 }
             }
-
             // #if true
             //             Debug.Assert(client.gameSessionInfo != null);
             //             var options = new JsonSerializerOptions { WriteIndented = true };
@@ -286,6 +285,8 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
             worldXData?.Dispose();
             worldXData = new(rpc);
+
+            await worldXData.CretaGuestMobs(gm.curLevel, replicator.AddGhosts);
 
             await worldXData.Init();
         }

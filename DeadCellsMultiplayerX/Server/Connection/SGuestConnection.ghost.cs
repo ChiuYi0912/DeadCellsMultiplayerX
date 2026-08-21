@@ -21,9 +21,6 @@ namespace DeadCellsMultiplayerX.Server.Connection
 {
     internal partial class SGuestConnection
     {
-
-        private readonly Dictionary<nint, EntityInfo> entitiesInfo = [];
-        private readonly Dictionary<string, EntityInfo> guid2entityInfoLookup = [];
         private readonly Dictionary<nint, SpriteInfo> spritesInfo = [];
 
         private SpriteInfo GetSpriteInfo(HSprite spr)
@@ -34,25 +31,6 @@ namespace DeadCellsMultiplayerX.Server.Connection
                 spritesInfo.Add(spr.HashlinkPointer, result);
             }
             return result;
-        }
-        private EntityInfo GetEntityInfo(Entity e)
-        {
-            if (!entitiesInfo.TryGetValue(e.HashlinkPointer, out var result))
-            {
-                result = new();
-                entitiesInfo.Add(e.HashlinkPointer, result);
-                guid2entityInfoLookup[result.GUID] = result;
-            }
-            return result;
-        }
-
-        private EntityInfo? GetEntityInfo(string guid)
-        {
-            if (guid2entityInfoLookup.TryGetValue(guid, out var result))
-            {
-                return result;
-            }
-            return null;
         }
 
         private void FillSpriteInfo(HSprite spr, string? parent, SpriteInfo inf)
@@ -147,7 +125,7 @@ namespace DeadCellsMultiplayerX.Server.Connection
 
             if (e.spr != null)
             {
-                inf.PosVector = DCMXSerializers.MessagePack.Serialize(new PosVector(e.cx, e.cy, e.xr, e.yr, e.dir));
+                inf.PosVector = new PosVector(e.cx, e.cy, e.xr, e.yr, e.dir);
                 var sinfo = GetSpriteInfo(e.spr);
                 inf.MainSprite = sinfo;
                 FillSpriteInfo(e.spr, inf.GUID, sinfo);
@@ -170,7 +148,13 @@ namespace DeadCellsMultiplayerX.Server.Connection
             var ryt = rect.Y + rect.Height;
             if (e.cx >= rx && e.cx <= rxt && e.cy >= ry && e.cy <= ryt && e.visible)
             {
-                EntityInfo inf = GetEntityInfo(e);
+                EntityInfo inf = worldXDataDirector.GetEntityByPointer(e.HashlinkPointer)!;
+
+                if (inf == null)
+                {
+                    info = null;
+                    return false;
+                }
 
                 e.isOnScreen = true;
 

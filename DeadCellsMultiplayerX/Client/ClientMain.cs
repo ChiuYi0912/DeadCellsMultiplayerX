@@ -44,15 +44,17 @@ namespace DeadCellsMultiplayerX.Client
 
             Hook_TitleScreen.mainMenu += Hook_TitleScreen_mainMenu;
             Hook__TitleScreen.__constructor__ += Hook__TitleScreen__constructor__;
-            Hook_TitleScreen.onDispose += (orig, self) =>
-            {
-                orig(self);
-                EventSystem.BroadcastEvent<IOnLobbyMenuDisposed>();
-                lobby?.Hide();
-                lobby?.destroy();
-            };
+            Hook_TitleScreen.onDispose += Hook_TitleScreen_onDispose;
 
             Hook_Game.init += Hook_Game_init;
+        }
+
+        private void Hook_TitleScreen_onDispose(Hook_TitleScreen.orig_onDispose orig, TitleScreen self)
+        {
+            orig(self);
+            EventSystem.BroadcastEvent<IOnLobbyMenuDisposed>();
+            lobby?.Hide();
+            lobby?.destroy();
         }
 
         private void Hook_Game_init(Hook_Game.orig_init orig, dc.pr.Game self)

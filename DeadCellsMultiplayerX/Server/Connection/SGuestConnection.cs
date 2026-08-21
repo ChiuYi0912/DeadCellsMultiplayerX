@@ -46,7 +46,7 @@ namespace DeadCellsMultiplayerX.Server.Connection
         public ServerMainThread Main => Session.Main;
         public IGuestRPC guest;
         private bool EnterNewLevelEnd { get; set; } = false;
-        private WorldXDataDirector worldXDataDirector = new();
+        private WorldSynchronizer worldXDataDirector = new();
 
         public SGuestConnection(ServerSession session, Stream connection)
         {
@@ -102,7 +102,8 @@ namespace DeadCellsMultiplayerX.Server.Connection
 
         void IOnEntitySetColorMap.OnEntitySetColorMap(IOnEntitySetColorMap.Data data)
         {
-            var info = GetEntityInfo(data.Entity);
+            var info = worldXDataDirector.GetEntityByPointer(data.Entity.HashlinkPointer);
+            if (info == null) return;
             info.ColorMapSkin = data.Skin;
             info.ColorMapModel = data.Model;
 

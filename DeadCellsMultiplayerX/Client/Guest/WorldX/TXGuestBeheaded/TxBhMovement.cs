@@ -18,7 +18,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.GuestHero
         public override void Fill(HeroInfo info)
         {
             var e = Hero;
-            info.PosVector = DCMXSerializers.MessagePack.Serialize(new PosVector(e.cx, e.cy, e.xr, e.yr, e.dir));
+            info.PosVector = new PosVector(e.cx, e.cy, e.xr, e.yr, e.dir);
         }
 
         public override void Initialize()

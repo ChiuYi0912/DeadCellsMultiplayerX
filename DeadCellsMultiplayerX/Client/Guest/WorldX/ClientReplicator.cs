@@ -1,11 +1,13 @@
 using System.Diagnostics;
 using dc;
+using dc.en;
 using dc.libs.heaps.slib;
 using dc.pr;
 using DeadCellsMultiplayerX.Client.Guest.WorldX.Entities;
 using DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Common.Serializers;
 using DeadCellsMultiplayerX.Server;
 using DeadCellsMultiplayerX.Utils;
 using Microsoft.VisualStudio.Threading;
@@ -17,7 +19,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
     internal class ClientReplicator : DisposableEventReceiver, IDisposable
     {
         private readonly GuestClientSession session;
-        private readonly Dictionary<string, Ghost> ghosts = [];
+        private readonly Dictionary<string, ClientMob> ghosts = [];
         private readonly Dictionary<string, SpriteLib> spriteLibs = [];
         private readonly Dictionary<string, HSprite> spriteCache = [];
 
@@ -34,10 +36,19 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
         protected override void MyDispose()
         {
             foreach (var g in ghosts.Values)
-                g.destroy();
+                g.mob.destroy();
             ghosts.Clear();
             spriteLibs.Clear();
             spriteCache.Clear();
+        }
+
+        public void AddGhosts(EntityInfo info, Level level, Mob mob)
+        {
+            if (!ghosts.TryGetValue(info.GUID, out var _))
+            {
+                var ghost = new ClientMob(mob, info.GUID);
+                ghosts.Add(info.GUID, ghost);
+            }
         }
 
 
@@ -100,7 +111,11 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
                 SubLevelId = LevelUtils.GetSubLevelIndex(lvl, gm),
                 Rect = rect
             };
-            var result = await session.Server.RequestAreaInfo(request);
+            var res = await session.Server.RequestAreaInfo(request);
+
+            var result = DCMXSerializers.MessagePack.Deserialize<AreaInfo>(res);
+
+            if (result == null) return;
 
             //应用碰撞
             var rrect = result.Rect;
@@ -126,6 +141,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
         {
             foreach (var info in entities)
             {
+                if (info == null) return;
                 info.localTime = session.CurrentTimeStamp;
                 ApplyEntityInfo(info, lvl);
             }
@@ -136,13 +152,11 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
         {
             lvl ??= (Level)dc.pr.Game.Class.ME.subLevels.getDyn(info.SubLevelId);
 
-            if (!ghosts.TryGetValue(info.GUID, out var ghost))
+            if (ghosts.TryGetValue(info.GUID, out var ghost))
             {
-                ghost = new Ghost(lvl, info.GUID);
-                ghost.init(info, this);
-                ghosts.Add(info.GUID, ghost);
+                ghost.ApplyUpdate(info);
             }
-            ghost.ApplyUpdate(info);
+            
         }
 
         public T? GetGhost<T>(string guid) where T : Ghost

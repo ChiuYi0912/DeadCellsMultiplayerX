@@ -235,8 +235,8 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entities
                 ref localTimeline, localTimescale,
                 out GhostSnapshot from, out GhostSnapshot to, out double t);
 
-            var Posfrom = DCMXSerializers.MessagePack.Deserialize<PosVector>(from.State.PosVector);
-            var Posto = DCMXSerializers.MessagePack.Deserialize<PosVector>(to.State.PosVector);
+            var Posfrom = from.State.PosVector;
+            var Posto = to.State.PosVector;
 
             if (Posfrom == null || Posto == null) return;
 

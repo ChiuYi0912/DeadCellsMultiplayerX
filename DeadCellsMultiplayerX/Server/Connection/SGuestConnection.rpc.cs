@@ -4,6 +4,7 @@ using dc.libs.heaps.slib;
 using DeadCellsMultiplayerX.Client;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Common.Serializers;
 using DeadCellsMultiplayerX.Utils;
 using ModCore.Utilities;
 using System;
@@ -70,7 +71,7 @@ namespace DeadCellsMultiplayerX.Server.Connection
             return File.ReadAllBytes(Main.savePath);
         }
 
-        public async Task<AreaInfo> RequestAreaInfo(IServerRPC.AreaInfoRequest request)
+        public async Task<byte[]> RequestAreaInfo(IServerRPC.AreaInfoRequest request)
         {
             var rect = request.Rect;
             if (rect.X < 0)
@@ -120,13 +121,16 @@ namespace DeadCellsMultiplayerX.Server.Connection
 
                     if (v.cx >= rx && v.cx <= rxt && v.cy >= ry && v.cy <= ryt && v.visible)
                     {
-                        EntityInfo inf = GetEntityInfo(v);
+                        EntityInfo inf = worldXDataDirector.GetEntityByPointer(v.HashlinkPointer)!;
 
-                        v.isOnScreen = true;
+                        if (inf != null)
+                        {
+                            v.isOnScreen = true;
 
-                        FillEntityInfo(v, inf);
+                            FillEntityInfo(v, inf);
 
-                        areaInfo.Entities.Add(inf);
+                            areaInfo.Entities.Add(inf);
+                        }
                     }
                 }
             }
@@ -137,14 +141,14 @@ namespace DeadCellsMultiplayerX.Server.Connection
             //     areaInfo.Entities.Add(item);
             // }
 
-            return areaInfo;
+            return DCMXSerializers.MessagePack.Serialize(areaInfo);
         }
 
 
 
         public Task<EntityInfo?> RequestEntityInfo(string guid)
         {
-            return Task.FromResult(GetEntityInfo(guid));
+            return Task.FromResult(worldXDataDirector.GetEntityByGuid(guid));
         }
 
         public Task<long> GetTimeStamp()

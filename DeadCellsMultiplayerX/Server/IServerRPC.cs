@@ -45,7 +45,7 @@ namespace DeadCellsMultiplayerX.Server
         /// <param name="w"></param>
         /// <param name="h"></param>
         /// <returns></returns>
-        public Task<AreaInfo> RequestAreaInfo(AreaInfoRequest request);
+        public Task<byte[]> RequestAreaInfo(AreaInfoRequest request);
 
         /// <summary>
         /// 请求一个 Entity 信息
