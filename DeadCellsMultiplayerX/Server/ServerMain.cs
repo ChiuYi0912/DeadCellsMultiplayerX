@@ -113,6 +113,13 @@ namespace DeadCellsMultiplayerX.Server
 
             Hook_Level.attachMob += Hook_Level_attachMob;
             Hook__Mob.create += Hook__Mob_create;
+            Hook_Mob.onDie += Hook_Mob_OnDie;
+        }
+
+        private void Hook_Mob_OnDie(Hook_Mob.orig_onDie orig, Mob self)
+        {
+            orig(self);
+            EventSystem.BroadcastEvent<IOnMobOnDie,dc.en.Mob>(self);
         }
 
         private Mob Hook__Mob_create(Hook__Mob.orig_create orig, dc.String k, Level level, int cx, int cy, int dmgTier, Ref<int> lifeTier)

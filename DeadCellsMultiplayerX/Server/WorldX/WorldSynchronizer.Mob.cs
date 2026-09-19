@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using dc.en;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Common.Serializers;
 using DeadCellsMultiplayerX.Server.Events;
@@ -8,14 +9,18 @@ namespace DeadCellsMultiplayerX.Server.WorldX
 {
     internal partial class WorldSynchronizer :
     IOnAttachMob,
-    IOnCreateMob
+    IOnCreateMob,
+    IOnMobOnDie
     {
         /// <summary>
         /// 用于传输给客户端游戏运行时生成的Mob
         /// 
         /// 会包含LevelMobs
         /// </summary>
-        public Dictionary<string, byte[]> dynamicLevelMobs = [];
+        private Dictionary<string, byte[]> dynamicLevelMobs = [];
+
+        //已死亡的mob
+        private List<string> levelMobsDied = [];
 
 
         // 基于索引数组存储
@@ -106,7 +111,7 @@ namespace DeadCellsMultiplayerX.Server.WorldX
 
         void IOnAttachMob.OnAttachMob(IOnAttachMob.Data data)
         {
-           
+
         }
 
         void IOnCreateMob.OnCretaMob(IOnCreateMob.Data data)
@@ -119,6 +124,16 @@ namespace DeadCellsMultiplayerX.Server.WorldX
 
             dynamicLevelMobs.Add(info.GUID, DCMXSerializers.MessagePack.Serialize(runtimeMob));
             RegisterEntity(data.mob.HashlinkPointer, info);
+        }
+
+        void IOnMobOnDie.MobOnDie(Mob mob)
+        {
+            EntityInfo? info = GetEntityByPointer(mob.HashlinkPointer);
+
+            if (info == null) return;
+
+            RemoveEntityByPointer(mob.HashlinkPointer);
+            levelMobsDied.Add(info.GUID);
         }
     }
 }
