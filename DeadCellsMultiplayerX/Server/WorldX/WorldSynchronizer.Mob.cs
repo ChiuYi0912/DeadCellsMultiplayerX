@@ -11,11 +11,6 @@ namespace DeadCellsMultiplayerX.Server.WorldX
     IOnCreateMob
     {
         /// <summary>
-        /// 用于传输给客户端的dc.level.Mob
-        /// </summary>
-        public Dictionary<string, byte[]> LevelMobs = [];
-
-        /// <summary>
         /// 用于传输给客户端游戏运行时生成的Mob
         /// 
         /// 会包含LevelMobs
@@ -111,8 +106,7 @@ namespace DeadCellsMultiplayerX.Server.WorldX
 
         void IOnAttachMob.OnAttachMob(IOnAttachMob.Data data)
         {
-            var info = new EntityInfo();
-            LevelMobs.Add(info.GUID, DCMXSerializers.MessagePack.Serialize(data.mobdata));
+           
         }
 
         void IOnCreateMob.OnCretaMob(IOnCreateMob.Data data)
