@@ -121,16 +121,16 @@ namespace DeadCellsMultiplayerX.Server.Connection
 
                     if (v.cx >= rx && v.cx <= rxt && v.cy >= ry && v.cy <= ryt && v.visible)
                     {
-                        EntityInfo inf = worldXDataDirector.GetEntityByPointer(v.HashlinkPointer)!;
+                        // EntityInfo inf = worldXDataDirector.GetEntityByPointer(v.HashlinkPointer)!;
 
-                        if (inf != null)
-                        {
-                            v.isOnScreen = true;
+                        // if (inf != null)
+                        // {
+                        //     v.isOnScreen = true;
 
-                            FillEntityInfo(v, inf);
+                        //     FillEntityInfo(v, inf);
 
-                            areaInfo.Entities.Add(inf);
-                        }
+                        //     areaInfo.Entities.Add(inf);
+                        // }
                     }
                 }
             }
@@ -145,11 +145,6 @@ namespace DeadCellsMultiplayerX.Server.Connection
         }
 
 
-
-        public Task<EntityInfo?> RequestEntityInfo(string guid)
-        {
-            return Task.FromResult(worldXDataDirector.GetEntityByGuid(guid));
-        }
 
         public Task<long> GetTimeStamp()
         {

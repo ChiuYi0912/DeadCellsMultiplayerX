@@ -13,8 +13,6 @@ namespace DeadCellsMultiplayerX.Server.WorldX
         public Task<string> Test();
 
 
-        public Task<Dictionary<string, byte[]>> GetLevelMobs();
-
     }
 }
 

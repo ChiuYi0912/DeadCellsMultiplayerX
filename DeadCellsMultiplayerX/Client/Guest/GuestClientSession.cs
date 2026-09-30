@@ -65,7 +65,6 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
         public dc.pr.Game Game => dc.pr.Game.Class.ME;
         public GuestClient Client { get; private set; } = null!;
-        public WorldXDataReceive worldXData { get; set; } = null!;
 
         public override async Task Init()
         {
@@ -282,13 +281,6 @@ namespace DeadCellsMultiplayerX.Client.Guest
             replicator.Start();
 
             Debug.Assert(rpc != null);
-
-            worldXData?.Dispose();
-            worldXData = new(rpc);
-
-            await worldXData.CretaGuestMobs(gm.curLevel, replicator.AddGhosts);
-
-            await worldXData.Init();
         }
 
         private void UpdateTimeStamp()
@@ -342,13 +334,6 @@ namespace DeadCellsMultiplayerX.Client.Guest
         public void UpdateEntity(EntityInfo info)
         {
             replicator?.ApplyEntityInfo(info, null);
-        }
-
-        public Task<HeroInfo> RequestHeroInfo()
-        {
-            Debug.Assert(client.guestHeroManager != null);
-
-            return Task.FromResult(client.guestHeroManager.ReplicatingHeroInfo());
         }
     }
 }

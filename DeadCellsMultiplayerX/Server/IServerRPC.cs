@@ -47,12 +47,6 @@ namespace DeadCellsMultiplayerX.Server
         /// <returns></returns>
         public Task<byte[]> RequestAreaInfo(AreaInfoRequest request);
 
-        /// <summary>
-        /// 请求一个 Entity 信息
-        /// </summary>
-        /// <param name="guid"></param>
-        /// <returns></returns>
-        public Task<EntityInfo?> RequestEntityInfo(string guid);
 
         /// <summary>
         /// 获取服务器时间

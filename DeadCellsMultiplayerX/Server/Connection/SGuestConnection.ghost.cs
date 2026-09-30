@@ -134,49 +134,5 @@ namespace DeadCellsMultiplayerX.Server.Connection
             }
         }
 
-        private bool TryGetInfoIfVisable(Entity e, [NotNullWhen(true)] out EntityInfo? info)
-        {
-            if (lastRequest == null)
-            {
-                info = null;
-                return false;
-            }
-            var rect = lastRequest.Rect;
-            var rx = rect.X;
-            var ry = rect.Y;
-            var rxt = rect.X + rect.Width;
-            var ryt = rect.Y + rect.Height;
-            if (e.cx >= rx && e.cx <= rxt && e.cy >= ry && e.cy <= ryt && e.visible)
-            {
-                EntityInfo inf = worldXDataDirector.GetEntityByPointer(e.HashlinkPointer)!;
-
-                if (inf == null)
-                {
-                    info = null;
-                    return false;
-                }
-
-                e.isOnScreen = true;
-
-                inf.TypeName = e.GetType().FullName;
-
-                info = inf;
-                return true;
-            }
-            info = null;
-            return false;
-        }
-
-        public bool TryUpdateEntity(Entity e)
-        {
-            if (TryGetInfoIfVisable(e, out var inf))
-            {
-                FillEntityInfo(e, inf);
-                guest.UpdateEntity(inf);
-                return true;
-            }
-            return false;
-        }
-
     }
 }

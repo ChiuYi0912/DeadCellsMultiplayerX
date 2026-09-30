@@ -28,10 +28,5 @@ namespace DeadCellsMultiplayerX.Server.WorldX
         {
             base.MyDispose();
         }
-
-        Task<Dictionary<string, byte[]>> IWorldDataRPC.GetLevelMobs()
-        {
-            return Task.FromResult(dynamicLevelMobs);
-        }
     }
 }

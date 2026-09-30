@@ -102,12 +102,7 @@ namespace DeadCellsMultiplayerX.Server.Connection
 
         void IOnEntitySetColorMap.OnEntitySetColorMap(IOnEntitySetColorMap.Data data)
         {
-            var info = worldXDataDirector.GetEntityByPointer(data.Entity.HashlinkPointer);
-            if (info == null) return;
-            info.ColorMapSkin = data.Skin;
-            info.ColorMapModel = data.Model;
-
-            Logger.Information("Set colormap: {guid} {model} {skin}", info.GUID, info.ColorMapModel, info.ColorMapSkin);
+           
         }
 
         void IOnEntitySetGlowData.OnEntitySetGlowData(IOnEntitySetGlowData.Data data)

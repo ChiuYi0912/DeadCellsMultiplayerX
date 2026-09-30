@@ -22,8 +22,5 @@ namespace DeadCellsMultiplayerX.Client.Guest
         /// </summary>
         /// <param name="info"></param>
         public void UpdateEntity(EntityInfo info);
-
-
-        public Task<HeroInfo> RequestHeroInfo();
     }
 }
