@@ -17,6 +17,8 @@ namespace DeadCellsMultiplayerX.Client.Guest
         /// <returns></returns>
         public Task EnterNewLevel(byte[] saveData);
 
+        public Task<string> EnterNextLevel();
+
         /// <summary>
         /// 通知客户端更新 Entity
         /// </summary>

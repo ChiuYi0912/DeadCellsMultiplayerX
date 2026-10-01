@@ -10,7 +10,6 @@ using DeadCellsMultiplayerX.Client.Guest.WorldX;
 using DeadCellsMultiplayerX.Client.Host;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Server;
-using DeadCellsMultiplayerX.Server.WorldX;
 using DeadCellsMultiplayerX.Utils;
 using Hashlink.Proxy.Clousre;
 using Microsoft.VisualStudio.Threading;
