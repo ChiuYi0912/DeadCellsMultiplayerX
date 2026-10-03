@@ -3,12 +3,8 @@ using dc.pr;
 using DeadCellsMultiplayerX.Client.Guest;
 using DeadCellsMultiplayerX.Client.Host;
 using DeadCellsMultiplayerX.Client.Networks.Quic;
-using DeadCellsMultiplayerX.Server;
-using Hashlink.Virtuals;
 using HaxeProxy.Runtime;
 using ModCore;
-using ModCore.Mods;
-using ModCore.Utilities;
 using DeadCellsMultiplayerX.Client.UI;
 using dc;
 using ModCore.Modules;
@@ -17,6 +13,10 @@ using ModCore.Events;
 using dc.en;
 using DeadCellsMultiplayerX.Client.Event;
 using DeadCellsMultiplayerX.Server.Events;
+using dc.cine;
+using dc.level;
+using dc.tool;
+using System.Diagnostics;
 
 namespace DeadCellsMultiplayerX.Client
 {
@@ -47,6 +47,55 @@ namespace DeadCellsMultiplayerX.Client
             Hook_TitleScreen.onDispose += Hook_TitleScreen_onDispose;
 
             Hook_Game.init += Hook_Game_init;
+            Hook__LevelTransition.__constructor__ += Hook__LevelTransition__constructor__;
+        }
+
+        private void Hook__LevelTransition__constructor__(
+            Hook__LevelTransition.orig___constructor__ orig, LevelTransition arg1,
+            dc.String mainId, LevelMap map, int? linkId,
+            CPoint heroPosAfterBossRuneReload, Ref<bool> noLoadingData)
+        {
+            Debug.Assert(CurrentGuestClient != null);
+
+            Hero hero = dc.pr.Game.Class.ME.hero;
+
+            if (hero == null && hero!.destroyed) return;
+
+            string levelid = mainId == null ? string.Empty : mainId.ToString();
+
+            if (levelid == "PrisonStart" || levelid == string.Empty)
+            {
+                orig(arg1, mainId, map, linkId, heroPosAfterBossRuneReload, noLoadingData);
+                return;
+            }
+
+            //服务器发起的过渡
+            if (CurrentGuestClient.IsServerDrivenTransition)
+            {
+                hero.set_targetable(true);
+                hero.unlockControls();
+                orig(arg1, mainId, map, linkId, heroPosAfterBossRuneReload, noLoadingData);
+
+                return;
+            }
+
+            //通知服务器
+            _ = CurrentGuestClient.SelectNextLevel(levelid);
+
+
+            if (hero != null && !hero.destroyed)
+            {
+                hero.set_targetable(false);
+                hero.lockControlsF(999999);
+            }
+
+#if DEBUG
+            Logger.Information("==========Test Next Level=========");
+            Logger.Information("next level mainid: {f1}", levelid);
+            Logger.Information("map id: {f1} = null", map == null);
+            Logger.Information("link id: link {f1} = null", linkId == null);
+            Logger.Information("==========Test Next Level=========");
+#endif
         }
 
         private void Hook_TitleScreen_onDispose(Hook_TitleScreen.orig_onDispose orig, TitleScreen self)

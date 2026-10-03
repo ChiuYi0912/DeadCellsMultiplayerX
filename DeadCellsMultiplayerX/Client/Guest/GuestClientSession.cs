@@ -1,8 +1,6 @@
 ﻿using dc;
+using dc.cine;
 using dc.en;
-using dc.en.inter;
-using dc.hxd.res;
-using dc.libs.heaps.slib;
 using dc.pr;
 using dc.tool;
 using DeadCellsMultiplayerX.Client.Event;
@@ -12,20 +10,14 @@ using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Server;
 using DeadCellsMultiplayerX.Utils;
 using Hashlink.Proxy.Clousre;
-using Microsoft.VisualStudio.Threading;
 using ModCore;
 using ModCore.Events;
 using ModCore.Events.Interfaces.Game;
 using ModCore.Events.Interfaces.Game.Hero;
 using ModCore.Modules;
 using ModCore.Utilities;
-using PolyType.Abstractions;
 using StreamJsonRpc;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Text;
-using System.Text.Json;
 
 namespace DeadCellsMultiplayerX.Client.Guest
 {
@@ -65,6 +57,8 @@ namespace DeadCellsMultiplayerX.Client.Guest
         public dc.pr.Game Game => dc.pr.Game.Class.ME;
         public GuestClient Client { get; private set; } = null!;
 
+        public volatile bool serverDrivenTransition = false;
+
         public override async Task Init()
         {
             InitHooks();
@@ -75,6 +69,8 @@ namespace DeadCellsMultiplayerX.Client.Guest
             rpc.AddLocalRpcTarget(this);
 
             server = rpc.Attach<IServerRPC>();
+
+            rpc.SynchronizationContext = ModCore.Modules.Game.SynchronizationContext;
 
             rpc.Disconnected += Rpc_Disconnected;
             rpc.StartListening();
@@ -333,6 +329,20 @@ namespace DeadCellsMultiplayerX.Client.Guest
         public void UpdateEntity(EntityInfo info)
         {
             replicator?.ApplyEntityInfo(info, null);
+        }
+
+        public Task EnterNextLevel(string levelid)
+        {
+            serverDrivenTransition = true;
+            try
+            {
+                LevelTransition.Class.@goto.Invoke(levelid.AsHaxeString());
+            }
+            finally
+            {
+                serverDrivenTransition = false;
+            }
+            return Task.CompletedTask;
         }
     }
 }

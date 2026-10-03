@@ -2,16 +2,12 @@
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Server.Connection;
-using DeadCellsMultiplayerX.Server.WorldX;
+using DeadCellsMultiplayerX.Utils;
 using Microsoft.VisualStudio.Threading;
-using ModCore;
 using ModCore.Events.Interfaces.Game;
 using Nerdbank.Streams;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Pipes;
-using System.Text;
 
 namespace DeadCellsMultiplayerX.Server
 {
@@ -27,10 +23,11 @@ namespace DeadCellsMultiplayerX.Server
         private ServerMainThread? mainThread;
 
         private readonly List<SGuestConnection> guests = [];
+        public readonly Dictionary<string, GuestGameInfo> GuestsGameInfo = [];
 
         private readonly Stopwatch stopwatch = new();
         private long prevStopwatchTimeStamp = 0;
-        
+
         public long CurrentTimeStamp { get; private set; }
 
         public ServerMainThread Main => mainThread ?? throw new InvalidOperationException();
@@ -76,23 +73,57 @@ namespace DeadCellsMultiplayerX.Server
             byte[] numBuffer = new byte[4];
             while (true)
             {
-                await Task.Delay(1);
-
-                await mainChannelReader.ReadAtLeastAsync(numBuffer, 4, false);
+                await mainChannelReader.ReadAtLeastAsync(numBuffer, 4, throwOnEndOfStream: true);
 
                 var channelId = BitConverter.ToInt32(numBuffer);
-
                 if (channelId == -1)
                 {
-                    return; //加载完成
+                    break; // 加载完成
                 }
 
                 Logger.Information("Connecting from channel {id}", channelId);
 
                 var channel = multiplexingStream.AcceptChannel(channelId);
-                guests.Add(new SGuestConnection(this, channel.AsStream()));
+                var stream = channel.AsStream();
+
+                string guestGuid = await StreamUtils.ReadGuestGuidAsync(stream);
+
+                var sguest = new SGuestConnection(this, stream);
+                sguest.GuestInfo.Guid = guestGuid;
+
+                guests.Add(sguest);
+
+                var gameInfo = new GuestGameInfo
+                {
+                    PlyerID = guestGuid,
+                };
+                GuestsGameInfo.Add(guestGuid, gameInfo);
+
+                Logger.Information("Client Enter : {guid}", guestGuid);
             }
         }
+
+
+        /// <summary>
+        /// 通知所有客户端切换关卡
+        /// </summary>
+        /// <param name="levelid"></param>
+        /// <returns></returns>
+        public Task NoticeGuestsEnterNextLevel(string levelid)
+        {
+            foreach (var sGuest in guests)
+            {
+                sGuest.guest.EnterNextLevel(levelid);
+            }
+
+            foreach (var guest in GuestsGameInfo)
+            {
+                guest.Value.LevelSelected = false;
+            }
+
+            return Task.CompletedTask;
+        }
+
 
 
         private void UpdateTimeStamp()

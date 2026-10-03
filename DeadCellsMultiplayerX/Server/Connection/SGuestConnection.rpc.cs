@@ -16,7 +16,7 @@ namespace DeadCellsMultiplayerX.Server.Connection
 {
     internal partial class SGuestConnection : IServerRPC
     {
-
+        private int transitionGate = 0;
 
         public Task<bool> CheckVersion(string version)
         {
@@ -145,11 +145,63 @@ namespace DeadCellsMultiplayerX.Server.Connection
         }
 
 
-
         public Task<long> GetTimeStamp()
         {
             return Task.FromResult(Session.CurrentTimeStamp);
         }
 
+
+        public async Task GusetEnterNextLevel(string plyerid, string levelid)
+        {
+            if (Session.GuestsGameInfo[plyerid].LevelSelected)
+                return;
+
+            Session.GuestsGameInfo[plyerid].NextLevelID = levelid;
+            Session.GuestsGameInfo[plyerid].LevelSelected = true;
+
+            if (Interlocked.CompareExchange(ref transitionGate, 1, 0) != 0)
+                return;
+
+            while (!Session.GuestsGameInfo.All(e => e.Value.LevelSelected))
+            {
+                await Task.Delay(100);
+            }
+
+            var selectedLevelIds = Session.GuestsGameInfo
+                .Select(e => e.Value.NextLevelID)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Distinct()
+                .ToList();
+
+            string resultLevelId;
+
+            if (selectedLevelIds.Count == 1)
+            {
+                resultLevelId = selectedLevelIds[0];
+            }
+            else
+            {
+                int index = System.Random.Shared.Next(selectedLevelIds.Count);
+                resultLevelId = selectedLevelIds[index];
+            }
+
+
+            try
+            {
+                await Session.NoticeGuestsEnterNextLevel(resultLevelId);
+            }
+            finally
+            {
+                Interlocked.Exchange(ref transitionGate, 0);
+            }
+        }
+
+        public Task AmendGameInfo(GuestGameInfo info)
+        {
+            Session.GuestsGameInfo[info.PlyerID] = info;
+            return Task.CompletedTask;
+        }
+
+        public Task Ping() => Task.CompletedTask;
     }
 }

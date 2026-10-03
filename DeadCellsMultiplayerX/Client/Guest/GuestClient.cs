@@ -7,7 +7,6 @@ using DeadCellsMultiplayerX.Client.Host;
 using DeadCellsMultiplayerX.Client.Networks;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Utils;
-using Serilog;
 using StreamJsonRpc;
 using System.Diagnostics;
 
@@ -26,6 +25,8 @@ namespace DeadCellsMultiplayerX.Client.Guest
         public LobbyInfo? LobbyInfo { get; set; }
 
         public string Guid { get; set; } = "";
+
+        public bool IsServerDrivenTransition => session != null ? session.serverDrivenTransition : false;
 
         public async Task Init(string name)
         {
@@ -134,6 +135,11 @@ namespace DeadCellsMultiplayerX.Client.Guest
             LobbyInfo = await hostInterfact.GetLobbyInfo();
         }
 
+        public async Task SelectNextLevel(string levelid)
+        {
+            Debug.Assert(session != null);
+            await session.Server.GusetEnterNextLevel(session.Client.Guid, levelid);
+        }
 
         public void Quit()
         {

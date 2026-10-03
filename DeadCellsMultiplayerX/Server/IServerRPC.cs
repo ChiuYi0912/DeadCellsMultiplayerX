@@ -47,7 +47,20 @@ namespace DeadCellsMultiplayerX.Server
         /// <returns></returns>
         public Task<byte[]> RequestAreaInfo(AreaInfoRequest request);
 
+        /// <summary>
+        /// 修改游戏中基础信息
+        /// </summary>
+        /// <param name="Guid"></param>
+        /// <returns></returns>
+        public Task AmendGameInfo(GuestGameInfo gameInfo);
 
+        /// <summary>
+        /// 客户端告诉服务端,选择的下一个关卡
+        /// </summary>
+        /// <param name="plyerid"></param>
+        /// <param name="levelid"></param>
+        /// <returns></returns>
+        public Task GusetEnterNextLevel(string plyerid, string levelid);
 
         /// <summary>
         /// 获取服务器时间
@@ -56,6 +69,8 @@ namespace DeadCellsMultiplayerX.Server
         public Task<long> GetTimeStamp();
 
         public Task<bool> CheckVersion(string version);
+
+        public Task Ping();
 
     }
 }

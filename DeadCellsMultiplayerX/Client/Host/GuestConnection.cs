@@ -126,17 +126,21 @@ namespace DeadCellsMultiplayerX.Client.Host
 
         public Task<Stream> GetServerStream()
         {
-            if (!host.LobbyInfo.CanConnectServer ||
-                host.session == null)
-            {
+            if (!host.LobbyInfo.CanConnectServer || host.session == null)
                 throw new InvalidOperationException();
-            }
 
             Logger.Information("Connected server");
             channel = host.session.AllocNewChannel();
+            var stream = channel.AsStream();
+
+            //写入客户guid
+            var guidBytes = System.Text.Encoding.UTF8.GetBytes(guestInfo.Guid);
+            Debug.Assert(guidBytes.Length == 36);
+            stream.Write(guidBytes, 0, guidBytes.Length);
+            stream.Flush();
 
             Debug.Assert(IsConnectedServer);
-            return Task.FromResult(channel.AsStream());
+            return Task.FromResult(stream);
         }
 
         //

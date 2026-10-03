@@ -74,7 +74,8 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
                 // TODO: 接入 DisposeToken
                 session.DisposeToken.ThrowIfCancellationRequested();
 
-                await PollOnce();
+                await session.Server.Ping();
+                //await PollOnce();
             }
         }
 

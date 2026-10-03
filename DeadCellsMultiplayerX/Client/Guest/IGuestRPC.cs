@@ -17,7 +17,13 @@ namespace DeadCellsMultiplayerX.Client.Guest
         /// <returns></returns>
         public Task EnterNewLevel(byte[] saveData);
 
-        public Task<string> EnterNextLevel();
+        /// <summary>
+        /// 告诉客户端切换关卡
+        /// </summary>
+        /// <param name="levelid"></param>
+        /// <returns></returns>
+        public Task EnterNextLevel(string levelid);
+
 
         /// <summary>
         /// 通知客户端更新 Entity
