@@ -72,5 +72,11 @@ namespace DeadCellsMultiplayerX.Server
 
         public Task Ping();
 
+        /// <summary>
+        /// 客户端调用,用于给服务端发送hero信息,客户端负责广播给其他玩家
+        /// </summary>
+        /// <param name="info"></param>
+        /// <returns></returns>
+        public Task BroadcastSyncHero(EntityInfo info);
     }
 }

@@ -17,6 +17,8 @@ using dc.cine;
 using dc.level;
 using dc.tool;
 using System.Diagnostics;
+using dc.libs.heaps.slib;
+using dc.hxd.res;
 
 namespace DeadCellsMultiplayerX.Client
 {
@@ -37,10 +39,13 @@ namespace DeadCellsMultiplayerX.Client
         /// </summary>
         public LobbyMenu? lobby { get; internal set; }
 
+        public readonly Dictionary<object, string> spriteLib2altas = [];
+
         //初始化客户端
         public void Init()
         {
             Hook_GlowKey.applyGlowData += Hook_GlowKey_applyGlowData;
+            dc.libs.heaps.slib.assets.Hook__Atlas.load += Hook__Atlas_load;
 
             Hook_TitleScreen.mainMenu += Hook_TitleScreen_mainMenu;
             Hook__TitleScreen.__constructor__ += Hook__TitleScreen__constructor__;
@@ -48,6 +53,14 @@ namespace DeadCellsMultiplayerX.Client
 
             Hook_Game.init += Hook_Game_init;
             Hook__LevelTransition.__constructor__ += Hook__LevelTransition__constructor__;
+
+            Hook_Hero.postUpdate += Hook_Hero_postUpdate;
+        }
+
+        private void Hook_Hero_postUpdate(Hook_Hero.orig_postUpdate orig, Hero self)
+        {
+            orig(self);
+            EventSystem.BroadcastEvent<IOnLocalHeroPostUpdate,Hero>(self);
         }
 
         private void Hook__LevelTransition__constructor__(
@@ -124,6 +137,14 @@ namespace DeadCellsMultiplayerX.Client
             }
 
             orig(self, i, glowData);
+        }
+
+        private SpriteLib Hook__Atlas_load(dc.libs.heaps.slib.assets.Hook__Atlas.orig_load orig, dc.String atlasPath,
+             HaxeProxy.Runtime.HlAction onReload, dc.hl.types.ArrayObj notZeroBaseds, dc.hl.types.ArrayObj properties)
+        {
+            var lib = orig(atlasPath, onReload, notZeroBaseds, properties);
+            spriteLib2altas[lib] = atlasPath.ToString();
+            return lib;
         }
 
         /// <summary>

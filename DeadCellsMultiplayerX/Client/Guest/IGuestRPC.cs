@@ -30,5 +30,12 @@ namespace DeadCellsMultiplayerX.Client.Guest
         /// </summary>
         /// <param name="info"></param>
         public void UpdateEntity(EntityInfo info);
+
+
+        /// <summary>
+        /// 通知客户端同步玩家
+        /// </summary>
+        /// <returns></returns>
+        public Task SyncRemoteHero(EntityInfo info);
     }
 }

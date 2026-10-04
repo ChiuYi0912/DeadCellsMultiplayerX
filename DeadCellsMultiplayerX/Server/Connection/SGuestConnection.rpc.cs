@@ -203,5 +203,11 @@ namespace DeadCellsMultiplayerX.Server.Connection
         }
 
         public Task Ping() => Task.CompletedTask;
+
+        public Task BroadcastSyncHero(EntityInfo info)
+        {
+            Session.BroadcastGuestsSyncRemoteHero(info);
+            return Task.CompletedTask;
+        }
     }
 }

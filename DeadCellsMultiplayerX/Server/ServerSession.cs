@@ -124,7 +124,16 @@ namespace DeadCellsMultiplayerX.Server
             return Task.CompletedTask;
         }
 
+        public Task BroadcastGuestsSyncRemoteHero(EntityInfo info)
+        {
+            foreach (var guest in guests)
+            {
+                if (guest.GuestInfo.Guid == info.GUID) continue;
 
+                guest.guest.SyncRemoteHero(info);
+            }
+            return Task.CompletedTask;
+        }
 
         private void UpdateTimeStamp()
         {

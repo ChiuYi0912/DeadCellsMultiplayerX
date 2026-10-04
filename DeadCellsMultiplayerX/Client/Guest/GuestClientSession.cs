@@ -26,7 +26,8 @@ namespace DeadCellsMultiplayerX.Client.Guest
     /// </summary>
     internal class GuestClientSession(GuestClient client, Stream serverStream) : ClientSession,
         IGuestRPC,
-        IOnFrameUpdate
+        IOnFrameUpdate,
+        IOnLocalHeroPostUpdate
     {
         private JsonRpc? rpc;
         private IServerRPC server = null!;
@@ -56,7 +57,7 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
         public dc.pr.Game Game => dc.pr.Game.Class.ME;
         public GuestClient Client { get; private set; } = null!;
-
+        public RemoteHeroManager remoteHeroManager { get; private set; } = null!;
         public volatile bool serverDrivenTransition = false;
 
         public override async Task Init()
@@ -275,6 +276,8 @@ namespace DeadCellsMultiplayerX.Client.Guest
             replicator = new(this);
             replicator.Start();
 
+            remoteHeroManager = new(this);
+
             Debug.Assert(rpc != null);
         }
 
@@ -342,6 +345,28 @@ namespace DeadCellsMultiplayerX.Client.Guest
             {
                 serverDrivenTransition = false;
             }
+            return Task.CompletedTask;
+        }
+
+        void IOnLocalHeroPostUpdate.OnPostUpdate(Hero hero)
+        {
+            var game = dc.pr.Game.Class.ME;
+            if (hero != game?.hero) return;
+            if (hero.destroyed) return;
+
+            EntityInfo info = HeroUtils.Collect(
+                hero,
+                guid: Client.Guid,
+                remoteTime: CurrentTimeStamp,
+                atlasResolver: lib => ClientMain.Instance.spriteLib2altas.GetValueOrDefault(lib)
+            );
+
+            server.BroadcastSyncHero(info);
+        }
+
+        public Task SyncRemoteHero(EntityInfo info)
+        {
+            remoteHeroManager.ApplyOrCreate(info);
             return Task.CompletedTask;
         }
     }
