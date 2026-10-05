@@ -51,7 +51,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
 
         private RemoteHero CreateRemoteHero(EntityInfo info)
         {
-            var hero = new RemoteHero(session.Game.curLevel, 0, 0);
+            var hero = new RemoteHero(session.Game.curLevel, info.PosVector.CX, info.PosVector.CY);
             hero.init();
             return hero;
         }

@@ -60,7 +60,7 @@ namespace DeadCellsMultiplayerX.Client
         private void Hook_Hero_postUpdate(Hook_Hero.orig_postUpdate orig, Hero self)
         {
             orig(self);
-            EventSystem.BroadcastEvent<IOnLocalHeroPostUpdate,Hero>(self);
+            EventSystem.BroadcastEvent<IOnLocalHeroPostUpdate, Hero>(self);
         }
 
         private void Hook__LevelTransition__constructor__(
@@ -68,6 +68,13 @@ namespace DeadCellsMultiplayerX.Client
             dc.String mainId, LevelMap map, int? linkId,
             CPoint heroPosAfterBossRuneReload, Ref<bool> noLoadingData)
         {
+
+            if (CurrentHostClient == null && CurrentHostClient == null)
+            {
+                orig(arg1, mainId, map, linkId, heroPosAfterBossRuneReload, noLoadingData);
+                return;
+            }
+
             Debug.Assert(CurrentGuestClient != null);
 
             Hero hero = dc.pr.Game.Class.ME.hero;

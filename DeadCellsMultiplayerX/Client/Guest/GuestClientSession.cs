@@ -34,24 +34,18 @@ namespace DeadCellsMultiplayerX.Client.Guest
         private bool isOwner = false;
         private byte[]? saveData;
         private ClientReplicator? replicator;
-        private Task? syncTimeStampTask;
         private readonly List<HashlinkHooks.HookHandle> hooks = [];
 
+        #region Time
         private long lastSyncStopwatchTime = 0;
         private long prevStopwatchTime = 0;
         private readonly Stopwatch stopwatch = new();
+        private Task? syncTimeStampTask;
 
-        /// <summary>
-        /// 当前服务器时间 (ms)
-        /// </summary>
         public long CurrentTimeStamp { get; private set; }
-
-        /// <summary>
-        /// 供 Ghost.postUpdate() 等渲染代码读取的同步服务器时间。
-        /// 由 <see cref="IOnFrameUpdate.OnFrameUpdate"/> 在每帧开始时写入。
-        /// 在主线程上运行，无需同步。
-        /// </summary>
         public static long SyncedTimeMs { get; private set; }
+
+        #endregion
 
         public IServerRPC Server => server ?? throw new InvalidOperationException();
 
@@ -283,47 +277,48 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
         private void UpdateTimeStamp()
         {
+            long now = stopwatch.ElapsedMilliseconds;
+
             if (prevStopwatchTime == 0)
             {
-                prevStopwatchTime = stopwatch.ElapsedMilliseconds;
+                prevStopwatchTime = now;
                 return;
             }
 
-            if (rpc?.IsDisposed ?? true)
-            {
-                return;
-            }
+            if (rpc?.IsDisposed ?? true) return;
 
-            CurrentTimeStamp += stopwatch.ElapsedMilliseconds - prevStopwatchTime;
-            prevStopwatchTime = stopwatch.ElapsedMilliseconds;
+            CurrentTimeStamp += now - prevStopwatchTime;
+            prevStopwatchTime = now;
 
-            if (stopwatch.ElapsedMilliseconds - lastSyncStopwatchTime > 5 * 1000 ||
-                lastSyncStopwatchTime == 0)
+            bool needSync = now - lastSyncStopwatchTime > 5_000 || lastSyncStopwatchTime == 0;
+            bool syncIdle = syncTimeStampTask == null || syncTimeStampTask.IsCompleted;
+
+            if (needSync && syncIdle)
             {
-                if (syncTimeStampTask?.IsCompleted ?? false)
-                {
-                    return;
-                }
-                long startTime;
-                //与服务器同步
-                async Task SyncWithServer()
-                {
-                    try
-                    {
-                        startTime = stopwatch.ElapsedMilliseconds;
-                        var time = await Server.GetTimeStamp();
-                        CurrentTimeStamp = time + (stopwatch.ElapsedMilliseconds - startTime) / 2;
-                    }
-                    catch (Exception) when (IsDisposed || (rpc?.IsDisposed ?? true))
-                    { }
-                }
+                lastSyncStopwatchTime = now;
                 syncTimeStampTask = SyncWithServer();
+            }
+        }
+
+        private async Task SyncWithServer()
+        {
+            try
+            {
+                long t0 = stopwatch.ElapsedMilliseconds;
+                long serverTime = await Server.GetTimeStamp();
+                long rtt = stopwatch.ElapsedMilliseconds - t0;
+
+                CurrentTimeStamp = serverTime + rtt / 2;
+            }
+            catch (Exception) when (IsDisposed || (rpc?.IsDisposed ?? true)) { }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Sync time failed");
             }
         }
 
         void IOnFrameUpdate.OnFrameUpdate(double dt)
         {
-
             // 同步 TimeStamp
             UpdateTimeStamp();
             SyncedTimeMs = CurrentTimeStamp;
