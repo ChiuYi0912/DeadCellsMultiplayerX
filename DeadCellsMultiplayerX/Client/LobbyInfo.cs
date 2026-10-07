@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using DeadCellsMultiplayerX.Common.Data;
 
 namespace DeadCellsMultiplayerX.Client
 {
@@ -28,6 +29,11 @@ namespace DeadCellsMultiplayerX.Client
         /// 房间 Host
         /// </summary>
         public string Owner { get; set; } = "";
+
+        /// <summary>
+        /// 游戏模式
+        /// </summary>
+        public GameMode GameMode { get; set; } = GameMode.None;
     }
 
     /// <summary>
