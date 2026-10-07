@@ -29,6 +29,8 @@ namespace DeadCellsMultiplayerX.Common.Data
         [Key(8)] public Dictionary<int, byte[]> GlowData { get; set; } = [];
         [Key(9)] public SpriteInfo? MainSprite { get; set; }
         [Key(10)] public AnimInfo animInfo { get; set; } = new();
+        [Key(11)] public byte CollisionMode { get; set; } = 0;
+        [Key(12)] public List<AffectEntry> HeroEffectList { get; set; } = [];
 
     }
 }

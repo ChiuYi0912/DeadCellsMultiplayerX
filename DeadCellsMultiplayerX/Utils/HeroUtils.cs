@@ -1,15 +1,20 @@
 using System;
 using System.Runtime.CompilerServices;
+using CoreLibrary.Core.Extensions;
 using dc;
 using dc.en;
 using dc.en.hero;
+using dc.hl.types;
 using dc.libs.heaps.slib;
 using dc.libs.heaps.slib._AnimManager;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Common.Serializers;
+using Hashlink.Proxy;
+using Hashlink.Proxy.Objects;
 using Hashlink.Virtuals;
 using HaxeProxy.Runtime;
 using ModCore.Utilities;
+using Serilog.Core;
 
 namespace DeadCellsMultiplayerX.Utils
 {
@@ -48,10 +53,12 @@ namespace DeadCellsMultiplayerX.Utils
 
             inf.SubLevelId = e._level.GetSubLevelIndex();
             inf.remoteTime = remoteTime;
+            inf.CollisionMode = (byte)e.collisionMode.RawIndex;
+            inf.HeroEffectList = AffectCodec.Collect((Hero)e);
 
             if (e.spr != null)
             {
-                inf.PosVector = new PosVector(e.cx, e.cy, e.xr, e.yr, e.dir,e.dx, e.dy, e.bdx, e.bdy);
+                inf.PosVector = new PosVector(e.cx, e.cy, e.xr, e.yr, e.dir, e.dx, e.dy, e.bdx, e.bdy);
 
                 var sinfo = GetSpriteInfo(e.spr);
                 inf.MainSprite = sinfo;

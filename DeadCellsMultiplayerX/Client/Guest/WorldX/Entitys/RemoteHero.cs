@@ -1,14 +1,14 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using CoreLibrary.Core.Extensions;
 using dc;
 using dc.en;
+using dc.hl.types;
 using dc.libs.heaps.slib._AnimManager;
 using dc.pr;
 using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Common.Serializers;
+using DeadCellsMultiplayerX.Utils;
+using DeadCellsSync.Core.Snapshot;
 using ModCore.Utilities;
-using Serilog.Core;
 
 namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
 {
@@ -16,13 +16,18 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
     {
         private string lastGroup = "";
         private bool inRun;
-        private const double PosCorrectDistSq = 8.0;   // 2² = 4
 
-        private int netCx, netCy;
-        private double netXr, netYr;
-        private double netDx, netDy, netBdx, netBdy;
-        private int netDir;
+
+        private const double InterpolationDelaySeconds = 0.1; // 渲染延迟100ms，保证总有两个快照可插值，平滑网络状态
+        private const double TeleportDistSq = 25.0 * 25.0; // 与快照距离平方超过25格时直接瞬移，避免远距离拉扯
+
+
+        private const double PositionCorrectionStrength = 2.0; // 位置误差拉动目标速度的强度，越大追得越快，越小越平滑
+        private const double VelocityResponse = 0.25; // 每物理帧向目标速度靠拢的比例，越大响应越快，越小越平滑
+
+        private readonly SnapshotBuffer<EntityInfo> snapshotBuffer = new(InterpolationDelaySeconds);
         private bool hasData;
+        private double lastSnapX, lastSnapY;
 
         public RemoteHero(Level lvl, int x, int y) : base(lvl, x, y)
         {
@@ -34,6 +39,9 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
         {
             base.init();
             hasRepelling = false;
+            hasGravity = false;
+            gravity = 0;
+            collisionMode = new CollisionMode.None();
         }
 
         public override void initGfx()
@@ -48,28 +56,95 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
                new(RunConditionNoCinematic),
                default,
                null);
+            anim.removeAllStateAnims();
 
-            //anim.removeAllStateAnims();
+            createConfLight("Hero".AsHaxeString());
         }
 
         public void ApplyInfoToHero(EntityInfo info)
         {
-            var pos = info?.PosVector;
+            var pos = info.PosVector;
             if (pos == null) return;
 
-            double curX = cx + xr, curY = cy + yr;
-            double nX = pos.CX + pos.XR, nY = pos.CY + pos.XY;
-            double dX = nX - curX, dY = nY - curY;
-            if (dX * dX + dY * dY > PosCorrectDistSq)
-                setPosCase(pos.CX, pos.CY, pos.XR, pos.XY);
+            double nx = pos.CX + pos.XR;
+            double ny = pos.CY + pos.XY;
 
-            netCx = pos.CX; netCy = pos.CY;
-            netXr = pos.XR; netYr = pos.XY;
-            netDir = pos.DIR;
-            netDx = pos.DX; netDy = pos.DY;
-            netBdx = pos.BDX; netBdy = pos.BDY;
 
+            if (hasData && (nx - lastSnapX) * (nx - lastSnapX) + (ny - lastSnapY) * (ny - lastSnapY) > TeleportDistSq)
+            {
+                snapshotBuffer.Clear();
+            }
+
+            lastSnapX = nx;
+            lastSnapY = ny;
+            snapshotBuffer.AddSnapshot(info.remoteTime / 1000.0, info);
             hasData = true;
+        }
+
+        public override void fixedUpdate()
+        {
+            if (!hasData) { base.fixedUpdate(); return; }
+
+            if (snapshotBuffer.TryGetInterpolation(GuestClientSession.SyncedTimeMs / 1000.0, out var prev, out var next, out var alpha))
+            {
+                var fromPos = prev.PosVector;
+                var toPos = next.PosVector;
+
+                if (fromPos != null && toPos != null)
+                {
+                    //网络目标位置（仅用于测量漂移）
+                    double snapX = Lerp(fromPos.CX + fromPos.XR, toPos.CX + toPos.XR, alpha);
+                    double snapY = Lerp(fromPos.CY + fromPos.XY, toPos.CY + toPos.XY, alpha);
+
+                    //网络目标速度
+                    double netDx = Lerp(fromPos.DX, toPos.DX, alpha);
+                    double netDy = Lerp(fromPos.DY, toPos.DY, alpha);
+
+                    //与实际模拟位置相比的位置误差
+                    double actualX = cx + xr;
+                    double actualY = cy + yr;
+                    double errorX = snapX - actualX;
+                    double errorY = snapY - actualY;
+
+                    // 严重不同步,直接瞬移并重置
+                    if (errorX * errorX + errorY * errorY > TeleportDistSq)
+                    {
+                        int scx = (int)System.Math.Floor(snapX);
+                        int scy = (int)System.Math.Floor(snapY);
+                        setPosCase(scx, scy, snapX - scx, snapY - scy);
+                        dx = netDx; dy = netDy;
+                        bdx = 0; bdy = 0;
+                        if (dir != toPos.DIR) dir = toPos.DIR;
+                        snapshotBuffer.Clear();
+                        UpdateAnim(next);
+                        AffectCodec.Apply(this, prev.HeroEffectList);
+                        base.fixedUpdate();
+                        return;
+                    }
+
+                    //根据位置误差对目标速度进行校准
+                    double targetDx = netDx + errorX * PositionCorrectionStrength;
+                    double targetDy = netDy + errorY * PositionCorrectionStrength;
+
+                    //将 dx/dy 加速至目标速度
+                    dx += (targetDx - dx) * VelocityResponse;
+                    dy += (targetDy - dy) * VelocityResponse;
+
+                    //击退速度由服务器控制
+                    bdx = Lerp(fromPos.BDX, toPos.BDX, alpha);
+                    bdy = Lerp(fromPos.BDY, toPos.BDY, alpha);
+
+                    //根据alpha值选择更近的快照,设置方向
+                    int targetDir = alpha < 0.5 ? fromPos.DIR : toPos.DIR;
+                    if (dir != targetDir) dir = targetDir;
+
+                    //collisionMode = CollisionModeLookup.Get(prev.CollisionMode);
+                    AffectCodec.Apply(this, prev.HeroEffectList);
+                    UpdateAnim(prev);
+                }
+            }
+
+            base.fixedUpdate();
         }
 
         public void UpdateAnim(EntityInfo info)
@@ -78,12 +153,21 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
             var anim = spr.get_anim();
             if (spr == null || info == null || info.MainSprite == null || animinfo == null || anim == null) return;
 
-            if (lastGroup != info.MainSprite.GroupName)
+            string groupName = info.MainSprite.GroupName;
+
+            if (IsRollRelatedGroup(groupName) && IsRollAct())
             {
-                lastGroup = info.MainSprite.GroupName;
+                lastGroup = "";
+                return;
+            }
+
+            if (lastGroup != groupName)
+            {
+                lastGroup = groupName;
                 var cur = anim.stack?.getDyn(0) as AnimInstance;
                 if (cur != null) cur.plays = 0;
-                anim.play(info.MainSprite.GroupName.AsHaxeString(), info.animInfo.Plays, null).loop(null);
+
+                anim.play(groupName.AsHaxeString(), info.animInfo.Plays, null);
             }
 
             var stack = anim.stack?.getDyn(0) as AnimInstance;
@@ -96,38 +180,31 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
         }
 
 
-        /// <summary>
-        /// 更新完后获取信息
-        /// </summary>
-        public override void postUpdate()
+
+
+        private bool IsAffectActive(int affectId)
         {
-            base.postUpdate();
+            var affects = this.affects;
+            if (affects == null) return false;
+            if (affectId < 0 || affectId >= affects.length) return false;
+            if (!(affects.array[affectId] is ArrayObj list)) return false;
+            return list.length > 0;
         }
 
-        /// <summary>
-        /// 帧更新之前写入
-        /// </summary>
-        public override void fixedUpdate()
+        private static bool IsRollRelatedGroup(string name)
         {
-            if (!hasData) { base.fixedUpdate(); return; }
-
-            dx = netDx; dy = netDy;
-            bdx = netBdx; bdy = netBdy;
-            if (dir != netDir) dir = netDir;
-
-            base.fixedUpdate();
+            switch (name)
+            {
+                case "rolling":
+                case "rollEnd":
+                case "rollIdle":
+                case "rollRun":
+                    return true;
+                default:
+                    return false;
+            }
         }
 
-
-        // private bool RunConditionNoCinematic()
-        // {
-        //     double absDx = dx < 0.0 ? -dx : dx;
-        //     if (absDx <= runSpd * 0.25) return false;
-
-        //     if (dy < -0.1 || dy > 0.1) return false;
-
-        //     return true;
-        // }
         private bool RunConditionNoCinematic()
         {
             double absDx = dx < 0.0 ? -dx : dx;
@@ -145,5 +222,12 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
 
             return inRun;
         }
+
+
+        public override bool _isOnScreen() => true;
+        private bool IsRollAct() => IsAffectActive(3) ? true : false;   /// 检查本地英雄是否处于与翻滚状态
+
+
+        private static double Lerp(double a, double b, double t) => a + (b - a) * t;
     }
 }

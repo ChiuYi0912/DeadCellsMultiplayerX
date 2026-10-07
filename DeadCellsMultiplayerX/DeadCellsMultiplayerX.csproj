@@ -28,6 +28,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\DeadCellsSync\src\DeadCellsSync.Core\DeadCellsSync.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="HashlinkSharp" />
     <Reference Include="ModCore.Native" />
     <Reference Include="DebugConsole" />
