@@ -53,6 +53,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
         {
             var hero = new RemoteHero(session.Game.curLevel, info.PosVector.CX, info.PosVector.CY);
             hero.init();
+            hero.ChangeSkin(info);
             return hero;
         }
 

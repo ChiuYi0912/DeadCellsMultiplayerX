@@ -2,12 +2,14 @@ using CoreLibrary.Core.Extensions;
 using dc;
 using dc.en;
 using dc.hl.types;
+using dc.libs.heaps.slib;
 using dc.libs.heaps.slib._AnimManager;
 using dc.pr;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Common.Serializers;
 using DeadCellsMultiplayerX.Utils;
 using DeadCellsSync.Core.Snapshot;
+using Hashlink.Virtuals;
 using ModCore.Utilities;
 
 namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
@@ -253,6 +255,30 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
                 stack.speed = chosen.Speed;
                 stack.paused = chosen.Paused;
                 stack.playDuration = chosen.playDuration;
+            }
+        }
+
+        public void ChangeSkin(EntityInfo info)
+        {
+            if (info.ColorMapModel == null || info.ColorMapSkin == null || info.MainSprite == null) return;
+
+            var sprlib = Assets.Class.lib.get(info.MainSprite.AtlasName.AsHaxeString());
+            var group = info.MainSprite.GroupName.AsHaxeString();
+            dc.h3d.mat.Texture normalMapFromGroup = sprlib.getNormalMapFromGroup(group);
+            initSprite(sprlib, group, null, null, null, true, null, normalMapFromGroup);
+
+            spr.pivot.copyFrom(DCMXSerializers.MessagePack.Deserialize<SpritePivot>(info.MainSprite.PivotData));
+
+            setColorMap(info.ColorMapModel?.AsHaxeString(),
+             info.ColorMapSkin?.AsHaxeString(), null);
+
+            if (info.GlowData != null)
+            {
+                foreach ((var idx, var gdd) in info.GlowData)
+                {
+                    if (gdd == null) continue;
+                    setGlowData(idx, DCMXSerializers.MessagePack.Deserialize<virtual_animationIntensity_animationScale_animationSpeed_animationTextureMask_inner_key_outer_power_>(gdd), spr);
+                }
             }
         }
 

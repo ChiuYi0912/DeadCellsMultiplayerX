@@ -66,7 +66,8 @@ namespace DeadCellsMultiplayerX.Utils
 
                 var sinfo = GetSpriteInfo(e.spr);
                 inf.MainSprite = sinfo;
-                FillSpriteInfo(e.spr, inf.GUID, sinfo, atlasResolver);
+                //FillSpriteInfo(e.spr, inf.GUID, sinfo, atlasResolver);
+                FillSkinInfo((Hero)e, inf);
                 FillEntityAnimInfo(inf, e.spr, remoteTime);
                 FillEntityGlowkeyData(e, inf);
             }
@@ -116,6 +117,25 @@ namespace DeadCellsMultiplayerX.Utils
                     FillSpriteInfo(child, inf.GUID, sinfo, atlasResolver);
                 }
             }
+        }
+
+        public static void FillSkinInfo(Hero hero, EntityInfo info)
+        {
+            var getSkinInfo = hero.getSkinInfo();
+
+            info.ColorMapModel = getSkinInfo.model.ToString();
+            info.ColorMapSkin = getSkinInfo.colorMap.ToString();
+
+            var atlaspath = "atlas/" + info.ColorMapModel + ".atlas";
+
+            if (info.MainSprite == null)
+            {
+                info.MainSprite = new SpriteInfo();
+            }
+            info.MainSprite.AtlasName = atlaspath;
+            info.MainSprite.GroupName = hero.spr.groupName.ToString();
+            info.MainSprite.PivotData = DCMXSerializers.MessagePack.Serialize(hero.spr?.pivot);
+            info.MainSprite.Parent = info.GUID;
         }
 
         public static void FillEntityAnimInfo(EntityInfo inf, HSprite spr, long remoteTime)
