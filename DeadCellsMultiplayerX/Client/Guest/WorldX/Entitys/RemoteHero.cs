@@ -129,7 +129,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
 
         private void Present(EntityInfo prev, EntityInfo next, double renderTimeSec)
         {
-            AffectCodec.Apply(this, prev.HeroEffectList);
+            AffectCodec.Apply(this, prev.HeroEffectList, renderTimeSec);
             Animate(prev, next, renderTimeSec);
         }
 

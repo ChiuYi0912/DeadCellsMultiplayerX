@@ -54,7 +54,11 @@ namespace DeadCellsMultiplayerX.Utils
             inf.SubLevelId = e._level.GetSubLevelIndex();
             inf.remoteTime = remoteTime;
             inf.CollisionMode = (byte)e.collisionMode.RawIndex;
-            inf.HeroEffectList = AffectCodec.Collect((Hero)e);
+            inf.HeroEffectList = AffectCodec.Collect(
+                         (Hero)e,
+                         remoteTime / 1000.0,
+                         e.cd.baseFps
+                        );
 
             if (e.spr != null)
             {

@@ -11,5 +11,8 @@ namespace DeadCellsMultiplayerX.Common.Data
         [Key(3)] public double T;
         [Key(4)] public int UniqId;
         [Key(5)] public double Val;
+
+        [Key(6)] public double StartSec;   // 首次出现时间
+        [Key(7)] public double EndSec;     // 结束时间 StartSec + T / baseFps
     }
 }
