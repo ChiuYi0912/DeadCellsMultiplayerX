@@ -31,6 +31,7 @@ namespace DeadCellsMultiplayerX.Common.Data
         [Key(3)] public ulong PackedC;
         [Key(4)] public ulong PackedD;
         [Key(5)] public string GroupName = string.Empty;
+        [Key(6)] public long StartTime;
 
         public const ulong FrameMask = (1UL << 31) - 1;
         public const ulong PausedMask = 1UL << 31;
@@ -108,5 +109,11 @@ namespace DeadCellsMultiplayerX.Common.Data
             PackedD = source.PackedD;
             GroupName = source.GroupName;
         }
+    }
+
+    public class AnimTracker
+    {
+        public string LastGroup = string.Empty;
+        public long StartTime;
     }
 }

@@ -22,7 +22,7 @@ namespace DeadCellsMultiplayerX.Utils
     public static class HeroUtils
     {
         private static readonly ConditionalWeakTable<HSprite, SpriteInfo> spriteCache = new();
-
+        private static readonly ConditionalWeakTable<AnimManager, AnimTracker> animStartCache = new();
         /// <summary>
         /// 收集一个 Hero 的完整信息
         /// </summary>
@@ -63,7 +63,7 @@ namespace DeadCellsMultiplayerX.Utils
                 var sinfo = GetSpriteInfo(e.spr);
                 inf.MainSprite = sinfo;
                 FillSpriteInfo(e.spr, inf.GUID, sinfo, atlasResolver);
-                FillEntityAnimInfo(inf, e.spr);
+                FillEntityAnimInfo(inf, e.spr, remoteTime);
                 FillEntityGlowkeyData(e, inf);
             }
         }
@@ -114,42 +114,55 @@ namespace DeadCellsMultiplayerX.Utils
             }
         }
 
-        public static void FillEntityAnimInfo(EntityInfo inf, HSprite spr)
+        public static void FillEntityAnimInfo(EntityInfo inf, HSprite spr, long remoteTime)
         {
             var anim = spr.get_anim();
-            if (spr != null && anim != null && !anim.destroyed && anim.stack.length > 0)
-            {
-                var current = anim.stack.getDyn(0) as AnimInstance;
-                var transitions = anim.transitions;
-                if (current != null)
-                {
-                    AnimInfo info = new AnimInfo
-                    {
-                        Speed = current.speed,
-                        Paused = current.paused,
-                        Frame = spr.frame,
-                        Plays = current.plays,
-                        playDuration = current.playDuration,
-                    };
+            if (anim == null || anim.destroyed || anim.stack == null || anim.stack.length == 0)
+                return;
 
-                    if (transitions != null
-                        && inf.animInfo.AnimTransitions.Count == 0
-                        && transitions.length > 0)
+            var current = anim.stack.getDyn(0) as AnimInstance;
+            if (current == null) return;
+
+            string groupName = spr.groupName?.ToString() ?? "";
+
+            if (!animStartCache.TryGetValue(anim, out var tracker))
+            {
+                tracker = new AnimTracker { LastGroup = "", StartTime = remoteTime };
+                animStartCache.Add(anim, tracker);
+            }
+
+            if (tracker.LastGroup != groupName)
+            {
+                tracker.LastGroup = groupName;
+                tracker.StartTime = remoteTime;
+            }
+
+            inf.animInfo = new AnimInfo
+            {
+                Speed = current.speed,
+                Paused = current.paused,
+                Frame = spr.frame,
+                Plays = current.plays,
+                playDuration = current.playDuration,
+                GroupName = groupName,
+                StartTime = tracker.StartTime,
+            };
+
+            var transitions = anim.transitions;
+            if (transitions != null
+                && inf.animInfo.AnimTransitions.Count == 0
+                && transitions.length > 0)
+            {
+                foreach (Transition data in transitions)
+                {
+                    inf.animInfo.AnimTransitions.Add(new AnimTransitions
                     {
-                        foreach (Transition data in transitions)
-                        {
-                            var tr = new AnimTransitions
-                            {
-                                Anim = data.anim.ToString(),
-                                From = data.from.ToString(),
-                                To = data.to.ToString(),
-                                reverse = data.reverse,
-                                speed = data.spd,
-                            };
-                            inf.animInfo.AnimTransitions.Add(tr);
-                        }
-                    }
-                    inf.animInfo = info;
+                        Anim = data.anim.ToString(),
+                        From = data.from.ToString(),
+                        To = data.to.ToString(),
+                        reverse = data.reverse,
+                        speed = data.spd,
+                    });
                 }
             }
         }
