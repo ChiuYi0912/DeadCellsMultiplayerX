@@ -11,11 +11,13 @@ using DeadCellsMultiplayerX.Common.Serializers;
 using DeadCellsMultiplayerX.Utils;
 using DeadCellsSync.Core.Snapshot;
 using Hashlink.Virtuals;
+using ModCore.Serialization;
+using ModCore.Storage;
 using ModCore.Utilities;
 
 namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
 {
-    internal class RemoteHero : KingSkin
+    internal class RemoteHero : KingSkin, IHxbitSerializable<RemoteHero.IHxData>
     {
         private readonly GuestClientSession session;
 
@@ -45,6 +47,8 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
             public double NetBdy;
             public int TargetDir;
         }
+
+        public class IHxData { }
 
 
         public RemoteHero(GuestClientSession session, Level lvl, int x = 0, int y = 0) : base(lvl, x, y)
@@ -346,5 +350,15 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
         private bool IsRollAct() => IsAffectActive(3);
 
         private static double Lerp(double a, double b, double t) => a + (b - a) * t;
+
+        IHxData IHxbitSerializable<IHxData>.GetData()
+        {
+            return new();
+        }
+
+        void IHxbitSerializable<IHxData>.SetData(IHxData data)
+        {
+            
+        }
     }
 }
