@@ -3,7 +3,7 @@ using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Common.Data.Snapshot;
 
-namespace DeadCellsMultiplayerX.Server
+namespace DeadCellsMultiplayerX.Server.WorldX
 {
     /// <summary>
     /// 全局的 hero 快照缓存中心
