@@ -1,6 +1,7 @@
 ﻿using dc.en;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Common.Data.Snapshot;
 using DeadCellsMultiplayerX.Server.Connection;
 using DeadCellsMultiplayerX.Utils;
 using Microsoft.VisualStudio.Threading;
@@ -21,14 +22,17 @@ namespace DeadCellsMultiplayerX.Server
         private MultiplexingStream.Channel? mainChannel;
         private Stream? mainChannelReader;
         private ServerMainThread? mainThread;
+        private HeroSnapshotHub heroHub = new();
+        private readonly ServerTimeSystem timeSystem = new();
 
         private readonly List<SGuestConnection> guests = [];
         public readonly Dictionary<string, GuestGameInfo> GuestsGameInfo = [];
 
-        private readonly Stopwatch stopwatch = new();
-        private long prevStopwatchTimeStamp = 0;
+        public long CurrentTimeStamp => timeSystem.Now;
 
-        public long CurrentTimeStamp { get; private set; }
+        // 发送节流（20Hz）
+        private double sendAccumulator;
+        private const double SendInterval = 0.05;
 
         public ServerMainThread Main => mainThread ?? throw new InvalidOperationException();
 
@@ -37,7 +41,7 @@ namespace DeadCellsMultiplayerX.Server
             await Task.Yield().ConfigureAwait(false);
 
             mainThread = new(this);
-            stopwatch.Start();
+            timeSystem.Start();
             outPipe.WriteByte(0x32);
 
             Logger.Information("Waiting host...");
@@ -124,25 +128,34 @@ namespace DeadCellsMultiplayerX.Server
             return Task.CompletedTask;
         }
 
-        public Task BroadcastGuestsSyncRemoteHero(EntityInfo info)
+        public Task BroadcastGuestsSyncRemoteHero(HeroUpload upload)
         {
-            foreach (var guest in guests)
-            {
-                if (guest.GuestInfo.Guid == info.GUID) continue;
-
-                guest.guest.SyncRemoteHero(info);
-            }
+            heroHub.Upload(upload);
             return Task.CompletedTask;
         }
 
-        private void UpdateTimeStamp()
-        {
-            CurrentTimeStamp += stopwatch.ElapsedMilliseconds - prevStopwatchTimeStamp;
-            prevStopwatchTimeStamp = stopwatch.ElapsedMilliseconds;
-        }
         void IOnFrameUpdate.OnFrameUpdate(double dt)
         {
-            UpdateTimeStamp();
+            timeSystem.Tick();
+
+            TickHeroSync(dt);
+        }
+
+        /// <summary>
+        /// 玩家同步，20Hz 固定发送
+        /// </summary>
+        /// <param name="dt"></param>
+        private void TickHeroSync(double dt)
+        {
+            sendAccumulator += dt;
+            if (sendAccumulator < SendInterval) return;
+            sendAccumulator -= SendInterval;
+
+            var snap = heroHub.Flush(CurrentTimeStamp);
+            if (snap == null) return;
+
+            foreach (var guest in guests)
+                guest.SyncSnapshot(snap);
         }
     }
 }

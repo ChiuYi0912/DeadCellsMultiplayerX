@@ -6,6 +6,7 @@ using dc.libs.heaps.slib;
 using dc.libs.heaps.slib._AnimManager;
 using dc.pr;
 using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Common.Data.Snapshot;
 using DeadCellsMultiplayerX.Common.Serializers;
 using DeadCellsMultiplayerX.Utils;
 using DeadCellsSync.Core.Snapshot;
@@ -14,8 +15,10 @@ using ModCore.Utilities;
 
 namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
 {
-    public class RemoteHero : KingSkin
+    internal class RemoteHero : KingSkin
     {
+        private readonly GuestClientSession session;
+
         // 常量
         private const double InterpolationDelaySeconds = 0.1;// 渲染延迟100ms，保证总有两个快照可插值，平滑网络状态
         private const double TeleportDistSq = 25.0 * 25.0;// 与快照距离平方超过25格时直接瞬移，避免远距离拉扯
@@ -23,7 +26,8 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
         private const double VelocityResponse = 0.25;// 每物理帧向目标速度靠拢的比例，越大响应越快，越小越平滑
 
         // 状态
-        private readonly SnapshotBuffer<EntityInfo> snapshotBuffer = new(InterpolationDelaySeconds);
+        private readonly SnapshotBuffer<HeroState> snapshotBuffer = new(InterpolationDelaySeconds);
+        private readonly HeroState current = new();
         private bool hasData;
         private double lastSnapX, lastSnapY;
         private string lastGroup = "";
@@ -43,8 +47,9 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
         }
 
 
-        public RemoteHero(Level lvl, int x, int y) : base(lvl, x, y)
+        public RemoteHero(GuestClientSession session, Level lvl, int x = 0, int y = 0) : base(lvl, x, y)
         {
+            this.session = session;
             set_easeSpritePos(false);
             hasWineGlass = false;
         }
@@ -56,6 +61,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
             hasGravity = false;
             gravity = 0;
             collisionMode = new CollisionMode.None();
+            frict = 0;
         }
 
         public override void initGfx()
@@ -75,27 +81,67 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
             createConfLight("Hero".AsHaxeString());
         }
 
-        // 接收网络数据
-        public void ApplyInfoToHero(EntityInfo info)
+        //初始化皮肤
+        public void ApplySpawn(HeroSpawn spawn)
         {
-            var pos = info.PosVector;
-            if (pos == null) return;
+            if (string.IsNullOrEmpty(spawn.ColorMapModel)
+                || string.IsNullOrEmpty(spawn.ColorMapSkin)
+                || spawn.MainSprite == null) return;
 
+            var sprlib = Assets.Class.lib.get(spawn.MainSprite.AtlasName.AsHaxeString());
+            var group = spawn.MainSprite.GroupName.AsHaxeString();
+            dc.h3d.mat.Texture normalMapFromGroup = sprlib.getNormalMapFromGroup(group);
+            initSprite(sprlib, group, null, null, null, true, null, normalMapFromGroup);
+
+            spr.pivot.copyFrom(
+                DCMXSerializers.MessagePack.Deserialize<SpritePivot>(spawn.MainSprite.PivotData));
+
+            setColorMap(
+                spawn.ColorMapModel.AsHaxeString(),
+                spawn.ColorMapSkin.AsHaxeString(),
+                null);
+
+            foreach (var (idx, gdd) in spawn.GlowData)
+            {
+                if (gdd == null) continue;
+                setGlowData(idx,
+                    DCMXSerializers.MessagePack.Deserialize<virtual_animationIntensity_animationScale_animationSpeed_animationTextureMask_inner_key_outer_power_>(gdd),
+                    spr);
+            }
+        }
+
+        /// <summary>
+        /// 将状态写入缓冲区
+        /// </summary>
+        /// <param name="dyn"></param>
+        /// <param name="serverTimeMs"></param>
+        public void PushState(HeroDynamic dyn, double serverTimeMs)
+        {
+            if (dyn == null) return;
+
+            if (dyn.HasPos) current.Pos = dyn.Pos;
+            if (dyn.HasAnim) current.Anim = dyn.Anim;
+            if (dyn.HasAffects) current.Affects = dyn.Affects;
+
+            var pos = current.Pos;
             double nx = pos.CX + pos.XR;
             double ny = pos.CY + pos.XY;
 
-            if (hasData && (nx - lastSnapX) * (nx - lastSnapX) + (ny - lastSnapY) * (ny - lastSnapY) > TeleportDistSq)
+            if (hasData
+                && (nx - lastSnapX) * (nx - lastSnapX) + (ny - lastSnapY) * (ny - lastSnapY) > TeleportDistSq)
             {
                 snapshotBuffer.Clear();
             }
 
             lastSnapX = nx;
             lastSnapY = ny;
-            snapshotBuffer.AddSnapshot(info.remoteTime / 1000.0, info);
+            snapshotBuffer.AddSnapshot(serverTimeMs / 1000.0, current.Clone());
             hasData = true;
+
+
         }
 
-
+        //固定更新
         public override void fixedUpdate()
         {
             if (hasData)
@@ -106,14 +152,13 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
 
         private void Tick()
         {
-            double nowSec = GuestClientSession.SyncedTimeMs / 1000.0;
+            double nowSec = session.SyncedTimeMs / 1000.0;
             if (!snapshotBuffer.TryGetInterpolation(nowSec, out var prev, out var next, out var alpha))
                 return;
 
-            var fromPos = prev.PosVector;
-            var toPos = next.PosVector;
-            if (fromPos == null || toPos == null)
-                return;
+            var fromPos = prev.Pos;
+            var toPos = next.Pos;
+            if (fromPos == null || toPos == null) return;
 
             double renderTimeSec = nowSec - InterpolationDelaySeconds;
             var snap = Interp(fromPos, toPos, alpha);
@@ -124,15 +169,20 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
                 return;
             }
 
+            //更新朝向
+            if (dir != snap.TargetDir) dir = snap.TargetDir;
+
             Sync(in snap);
-            Dir(in snap);
             Present(prev, next, renderTimeSec);
         }
 
-        private void Present(EntityInfo prev, EntityInfo next, double renderTimeSec)
+        private void Present(HeroState prev, HeroState next, double renderTimeSec)
         {
-            AffectCodec.Apply(this, prev.HeroEffectList, renderTimeSec);
-            Animate(prev, next, renderTimeSec);
+            //更新effct数组
+            AffectCodec.Apply(this, prev.Affects, renderTimeSec);
+
+            //播放动画
+            Animate(prev.Anim, next.Anim, renderTimeSec);
         }
 
         // 插值
@@ -176,7 +226,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
             return true;
         }
 
-        // 位置修正,误差驱动目标速度 + 击退速度
+        // 位置修正,误差驱动目标速度
         private void Sync(in InterpolatedSnapshot snap)
         {
             double actualX = cx + xr;
@@ -194,20 +244,11 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
             bdy = snap.NetBdy;
         }
 
-        // 方向
-        private void Dir(in InterpolatedSnapshot snap)
-        {
-            if (dir != snap.TargetDir) dir = snap.TargetDir;
-        }
-
         // 动画
-        public void Animate(EntityInfo prev, EntityInfo next, double renderTimeSec)
+        public void Animate(AnimInfo prevAnim, AnimInfo nextAnim, double renderTimeSec)
         {
             var anim = spr?.get_anim();
             if (anim == null) return;
-
-            var prevAnim = prev.animInfo;
-            var nextAnim = next.animInfo;
             if (prevAnim == null && nextAnim == null) return;
 
             AnimInfo chosen = nextAnim;
@@ -258,31 +299,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
             }
         }
 
-        public void ChangeSkin(EntityInfo info)
-        {
-            if (info.ColorMapModel == null || info.ColorMapSkin == null || info.MainSprite == null) return;
-
-            var sprlib = Assets.Class.lib.get(info.MainSprite.AtlasName.AsHaxeString());
-            var group = info.MainSprite.GroupName.AsHaxeString();
-            dc.h3d.mat.Texture normalMapFromGroup = sprlib.getNormalMapFromGroup(group);
-            initSprite(sprlib, group, null, null, null, true, null, normalMapFromGroup);
-
-            spr.pivot.copyFrom(DCMXSerializers.MessagePack.Deserialize<SpritePivot>(info.MainSprite.PivotData));
-
-            setColorMap(info.ColorMapModel?.AsHaxeString(),
-             info.ColorMapSkin?.AsHaxeString(), null);
-
-            if (info.GlowData != null)
-            {
-                foreach ((var idx, var gdd) in info.GlowData)
-                {
-                    if (gdd == null) continue;
-                    setGlowData(idx, DCMXSerializers.MessagePack.Deserialize<virtual_animationIntensity_animationScale_animationSpeed_animationTextureMask_inner_key_outer_power_>(gdd), spr);
-                }
-            }
-        }
-
-        // 辅助
+        //辅助 
         private bool IsAffectActive(int affectId)
         {
             var affects = this.affects;
@@ -326,7 +343,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
 
         public override bool _isOnScreen() => true;
 
-        private bool IsRollAct() => IsAffectActive(3) ? true : false;
+        private bool IsRollAct() => IsAffectActive(3);
 
         private static double Lerp(double a, double b, double t) => a + (b - a) * t;
     }

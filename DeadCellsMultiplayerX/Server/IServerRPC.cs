@@ -1,5 +1,6 @@
 ﻿using DeadCellsMultiplayerX.Client;
 using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Common.Data.Snapshot;
 using PolyType;
 using StreamJsonRpc;
 using System;
@@ -77,6 +78,6 @@ namespace DeadCellsMultiplayerX.Server
         /// </summary>
         /// <param name="info"></param>
         /// <returns></returns>
-        public Task BroadcastSyncHero(EntityInfo info);
+        public Task BroadcastSyncHero(HeroUpload info);
     }
 }

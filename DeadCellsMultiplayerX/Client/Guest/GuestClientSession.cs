@@ -7,6 +7,7 @@ using DeadCellsMultiplayerX.Client.Event;
 using DeadCellsMultiplayerX.Client.Guest.WorldX;
 using DeadCellsMultiplayerX.Client.Host;
 using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Common.Data.Snapshot;
 using DeadCellsMultiplayerX.Server;
 using DeadCellsMultiplayerX.Utils;
 using Hashlink.Proxy.Clousre;
@@ -37,28 +38,27 @@ namespace DeadCellsMultiplayerX.Client.Guest
         private readonly List<HashlinkHooks.HookHandle> hooks = [];
 
         #region Time
-        private long lastSyncStopwatchTime = 0;
-        private long prevStopwatchTime = 0;
-        private readonly Stopwatch stopwatch = new();
-        private Task? syncTimeStampTask;
+        private readonly ClientTimeSystem timeSystem = new();
 
-        public long CurrentTimeStamp { get; private set; }
-        public static long SyncedTimeMs { get; private set; }
+        // NTP 采样调度
+        private Task? ntpTask;
+        private long lastNtpRequestMs;
+        private const long NtpIntervalMs = 500;
 
+        // 对外：所有网络相关逻辑用这个
+        public long SyncedTimeMs => timeSystem.SyncedTime;
         #endregion
 
         public IServerRPC Server => server ?? throw new InvalidOperationException();
 
         public dc.pr.Game Game => dc.pr.Game.Class.ME;
         public GuestClient Client { get; private set; } = null!;
-        public RemoteHeroManager remoteHeroManager { get; private set; } = null!;
+        private RemoteWorld? remoteWorld;
         public volatile bool serverDrivenTransition = false;
 
         public override async Task Init()
         {
             InitHooks();
-
-            stopwatch.Start();
 
             rpc = serverStream.CreateJsonRpc();
             rpc.AddLocalRpcTarget(this);
@@ -107,6 +107,11 @@ namespace DeadCellsMultiplayerX.Client.Guest
             }
 
 
+        }
+
+        private void InitWorld()
+        {
+            remoteWorld = new RemoteWorld(this, client.Guid);
         }
 
         private void InitHooks()
@@ -268,66 +273,20 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
             replicator?.Dispose();
             replicator = new(this);
-            replicator.Start();
+            //replicator.Start();
 
-            remoteHeroManager = new(this);
+            InitWorld();
 
             Debug.Assert(rpc != null);
         }
 
-        private void UpdateTimeStamp()
-        {
-            long now = stopwatch.ElapsedMilliseconds;
-
-            if (prevStopwatchTime == 0)
-            {
-                prevStopwatchTime = now;
-                return;
-            }
-
-            if (rpc?.IsDisposed ?? true) return;
-
-            CurrentTimeStamp += now - prevStopwatchTime;
-            prevStopwatchTime = now;
-
-            bool needSync = now - lastSyncStopwatchTime > 5_000 || lastSyncStopwatchTime == 0;
-            bool syncIdle = syncTimeStampTask == null || syncTimeStampTask.IsCompleted;
-
-            if (needSync && syncIdle)
-            {
-                lastSyncStopwatchTime = now;
-                syncTimeStampTask = SyncWithServer();
-            }
-        }
-
-        private async Task SyncWithServer()
-        {
-            try
-            {
-                long t0 = stopwatch.ElapsedMilliseconds;
-                long serverTime = await Server.GetTimeStamp();
-                long rtt = stopwatch.ElapsedMilliseconds - t0;
-
-                CurrentTimeStamp = serverTime + rtt / 2;
-            }
-            catch (Exception) when (IsDisposed || (rpc?.IsDisposed ?? true)) { }
-            catch (Exception ex)
-            {
-                Logger.Error(ex, "Sync time failed");
-            }
-        }
 
         void IOnFrameUpdate.OnFrameUpdate(double dt)
         {
             // 同步 TimeStamp
-            UpdateTimeStamp();
-            SyncedTimeMs = CurrentTimeStamp;
+            TickTimeSystem();
         }
 
-        public void UpdateEntity(EntityInfo info)
-        {
-            replicator?.ApplyEntityInfo(info, null);
-        }
 
         public Task EnterNextLevel(string levelid)
         {
@@ -349,19 +308,56 @@ namespace DeadCellsMultiplayerX.Client.Guest
             if (hero != game?.hero) return;
             if (hero.destroyed) return;
 
-            EntityInfo info = HeroUtils.Collect(
+            var (spawn, dyn) = HeroUtils.Collect(
                 hero,
                 guid: Client.Guid,
-                remoteTime: CurrentTimeStamp,
-                atlasResolver: lib => ClientMain.Instance.spriteLib2altas.GetValueOrDefault(lib)
+                remoteTime: SyncedTimeMs
             );
 
-            server.BroadcastSyncHero(info);
+            var snapshot = new HeroUpload()
+            {
+                Spawn = spawn,
+                Dynamic = dyn
+            };
+
+            server.BroadcastSyncHero(snapshot);
         }
 
-        public Task SyncRemoteHero(EntityInfo info)
+        private void TickTimeSystem()
         {
-            remoteHeroManager.ApplyOrCreate(info);
+            if (timeSystem.Ready || server == null) return;
+
+            long now = ClientTimeSystem.NowMs();
+            if (now - lastNtpRequestMs < NtpIntervalMs) return;
+            if (ntpTask != null && !ntpTask.IsCompleted) return;
+
+            lastNtpRequestMs = now;
+            ntpTask = SampleNtpAsync();
+        }
+
+        private async Task SampleNtpAsync()
+        {
+            try
+            {
+                long t0 = ClientTimeSystem.NowMs();
+                long serverTime = await Server.GetTimeStamp();
+                long t1 = ClientTimeSystem.NowMs();
+
+                timeSystem.AddSample(t0, t1, serverTime);
+            }
+            catch (Exception) when (IsDisposed) { }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "NTP sample failed");
+            }
+        }
+
+
+        public Task SyncSnapshot(WorldSnapshot snapshot)
+        {
+            timeSystem.OnSnapshot((long)snapshot.ServerTime);
+
+            remoteWorld?.OnSnapshot(snapshot);
             return Task.CompletedTask;
         }
     }

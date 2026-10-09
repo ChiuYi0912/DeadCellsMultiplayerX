@@ -4,141 +4,97 @@ using CoreLibrary.Core.Extensions;
 using dc;
 using dc.en;
 using dc.en.hero;
-using dc.hl.types;
 using dc.libs.heaps.slib;
 using dc.libs.heaps.slib._AnimManager;
 using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Common.Data.Snapshot;
 using DeadCellsMultiplayerX.Common.Serializers;
 using Hashlink.Proxy;
-using Hashlink.Proxy.Objects;
 using Hashlink.Virtuals;
 using HaxeProxy.Runtime;
 using ModCore.Utilities;
-using Serilog.Core;
 
 namespace DeadCellsMultiplayerX.Utils
 {
-    /// 采集Hero同步信息
+    /// <summary>采集 Hero 同步信息</summary>
     public static class HeroUtils
     {
-        private static readonly ConditionalWeakTable<HSprite, SpriteInfo> spriteCache = new();
         private static readonly ConditionalWeakTable<AnimManager, AnimTracker> animStartCache = new();
+
         /// <summary>
-        /// 收集一个 Hero 的完整信息
+        /// 采集一个 Hero 的同步信息
         /// </summary>
-        /// <param name="hero"></param>
-        /// <param name="guid"></param>
-        /// <param name="remoteTime">当前服务器/会话时间戳</param>
-        /// <param name="atlasResolver">atlasPath</param>
-        public static EntityInfo Collect(
+        public static (HeroSpawn spawn, HeroDynamic dyn) Collect(
             Entity hero,
             string guid,
-            long remoteTime,
-            Func<SpriteLib, string?>? atlasResolver = null)
+            long remoteTime)
         {
-            var info = new EntityInfo { GUID = guid };
-            FillEntityInfo(hero, info, remoteTime, atlasResolver);
-            return info;
+            var spawn = new HeroSpawn { GUID = guid };
+            var dyn = new HeroDynamic { GUID = guid, ChangeMask = HeroDynamic.BitAll };
+
+            FillAll(hero, spawn, dyn, remoteTime);
+            return (spawn, dyn);
         }
 
-        public static void FillEntityInfo(
+        public static void FillAll(
             Entity e,
-            EntityInfo inf,
-            long remoteTime,
-            Func<SpriteLib, string?>? atlasResolver = null)
+            HeroSpawn spawn,
+            HeroDynamic dyn,
+            long remoteTime)
         {
-            inf.TypeName = e.GetType().FullName;
+            spawn.TypeName = e.GetType().FullName ?? string.Empty;
 
             if (!e.initDone) return;
 
-            inf.SubLevelId = e._level.GetSubLevelIndex();
-            inf.remoteTime = remoteTime;
-            inf.CollisionMode = (byte)e.collisionMode.RawIndex;
-            inf.HeroEffectList = AffectCodec.Collect(
-                         (Hero)e,
-                         remoteTime / 1000.0,
-                         e.cd.baseFps
-                        );
+            spawn.SubLevelId = e._level.GetSubLevelIndex();
+            dyn.Affects = AffectCodec.Collect(
+                (Hero)e,
+                remoteTime / 1000.0,
+                e.cd.baseFps);
 
             if (e.spr != null)
             {
-                inf.PosVector = new PosVector(e.cx, e.cy, e.xr, e.yr, e.dir, e.dx, e.dy, e.bdx, e.bdy);
+                dyn.Pos = new PosVector(
+                    e.cx, e.cy, e.xr, e.yr, e.dir,
+                    e.dx, e.dy, e.bdx, e.bdy);
 
-                var sinfo = GetSpriteInfo(e.spr);
-                inf.MainSprite = sinfo;
-                //FillSpriteInfo(e.spr, inf.GUID, sinfo, atlasResolver);
-                FillSkinInfo((Hero)e, inf);
-                FillEntityAnimInfo(inf, e.spr, remoteTime);
-                FillEntityGlowkeyData(e, inf);
+                FillSkinInfo((Hero)e, spawn);
+                FillAnimInfo(dyn, e.spr, remoteTime);
+                FillGlowData(e, spawn);
             }
         }
 
-        private static SpriteInfo GetSpriteInfo(HSprite spr)
+        public static void FillSkinInfo(Hero hero, HeroSpawn spawn)
         {
-            if (!spriteCache.TryGetValue(spr, out var result))
-            {
-                result = new SpriteInfo();
-                spriteCache.Add(spr, result);
-            }
-            return result;
+            var skin = hero.getSkinInfo();
+            spawn.ColorMapModel = skin.model.ToString();
+            spawn.ColorMapSkin = skin.colorMap.ToString();
+
+            spawn.MainSprite ??= new SpriteInfo();
+            spawn.MainSprite.AtlasName = "atlas/" + spawn.ColorMapModel + ".atlas";
+            spawn.MainSprite.GroupName = hero.spr.groupName.ToString();
+            spawn.MainSprite.PivotData = DCMXSerializers.MessagePack.Serialize(hero.spr?.pivot);
+            spawn.MainSprite.Parent = spawn.GUID;
         }
 
-        private static void FillSpriteInfo(
-            HSprite spr,
-            string? parent,
-            SpriteInfo inf,
-            Func<SpriteLib, string?>? atlasResolver)
+        public static void FillGlowData(Entity e, HeroSpawn spawn)
         {
-            if (atlasResolver != null && spr.lib != null)
+            if (spawn.GlowData.Count > 0) return;
+
+            var glow = (dc.shader.GlowKey)e.spr.getShader(dc.shader.GlowKey.Class);
+            if (glow == null) return;
+
+            var array = glow.getGlowDatas();
+            for (int i = 0; i < array.length; i++)
             {
-                var atlasPath = atlasResolver(spr.lib);
-                if (atlasPath != null)
-                {
-                    inf.AtlasName = atlasPath;
-                    inf.GroupName = spr.groupName.ToString();
-                }
-            }
-
-            inf.PivotData = DCMXSerializers.MessagePack.Serialize(spr?.pivot);
-            inf.Parent = parent;
-
-            var children = spr?.children;
-            inf.Children.Clear();
-
-            if (children != null)
-            {
-                for (int i = 0; i < children.length; i++)
-                {
-                    var child = children.getDyn(i) as HSprite;
-                    if (child == null) continue;
-
-                    var sinfo = GetSpriteInfo(child);
-                    inf.Children.Add(sinfo);
-                    FillSpriteInfo(child, inf.GUID, sinfo, atlasResolver);
-                }
+                var data = array.getDyn(i);
+                var virtuals = ((HaxeProxyBase)data)
+                    .ToVirtual<virtual_animationIntensity_animationScale_animationSpeed_animationTextureMask_inner_key_outer_power_>();
+                spawn.GlowData.Add(i, DCMXSerializers.MessagePack.Serialize(virtuals));
             }
         }
 
-        public static void FillSkinInfo(Hero hero, EntityInfo info)
-        {
-            var getSkinInfo = hero.getSkinInfo();
-
-            info.ColorMapModel = getSkinInfo.model.ToString();
-            info.ColorMapSkin = getSkinInfo.colorMap.ToString();
-
-            var atlaspath = "atlas/" + info.ColorMapModel + ".atlas";
-
-            if (info.MainSprite == null)
-            {
-                info.MainSprite = new SpriteInfo();
-            }
-            info.MainSprite.AtlasName = atlaspath;
-            info.MainSprite.GroupName = hero.spr.groupName.ToString();
-            info.MainSprite.PivotData = DCMXSerializers.MessagePack.Serialize(hero.spr?.pivot);
-            info.MainSprite.Parent = info.GUID;
-        }
-
-        public static void FillEntityAnimInfo(EntityInfo inf, HSprite spr, long remoteTime)
+        public static void FillAnimInfo(HeroDynamic dyn, HSprite spr, long remoteTime)
         {
             var anim = spr.get_anim();
             if (anim == null || anim.destroyed || anim.stack == null || anim.stack.length == 0)
@@ -147,7 +103,7 @@ namespace DeadCellsMultiplayerX.Utils
             var current = anim.stack.getDyn(0) as AnimInstance;
             if (current == null) return;
 
-            string groupName = spr.groupName?.ToString() ?? "";
+            string groupName = spr.groupName?.ToString() ?? string.Empty;
 
             if (!animStartCache.TryGetValue(anim, out var tracker))
             {
@@ -161,7 +117,7 @@ namespace DeadCellsMultiplayerX.Utils
                 tracker.StartTime = remoteTime;
             }
 
-            inf.animInfo = new AnimInfo
+            dyn.Anim = new AnimInfo
             {
                 Speed = current.speed,
                 Paused = current.paused,
@@ -174,12 +130,12 @@ namespace DeadCellsMultiplayerX.Utils
 
             var transitions = anim.transitions;
             if (transitions != null
-                && inf.animInfo.AnimTransitions.Count == 0
+                && dyn.Anim.AnimTransitions.Count == 0
                 && transitions.length > 0)
             {
                 foreach (Transition data in transitions)
                 {
-                    inf.animInfo.AnimTransitions.Add(new AnimTransitions
+                    dyn.Anim.AnimTransitions.Add(new AnimTransitions
                     {
                         Anim = data.anim.ToString(),
                         From = data.from.ToString(),
@@ -189,27 +145,6 @@ namespace DeadCellsMultiplayerX.Utils
                     });
                 }
             }
-        }
-
-        public static void FillEntityGlowkeyData(Entity e, EntityInfo info)
-        {
-            var glow = (dc.shader.GlowKey)e.spr.getShader(dc.shader.GlowKey.Class);
-            if (info.GlowData.Count == 0 && glow != null)
-            {
-                var array = glow.getGlowDatas();
-                for (int i = 0; i < array.length; i++)
-                {
-                    var data = array.getDyn(i);
-                    var virtuals = ((HaxeProxyBase)data)
-                        .ToVirtual<virtual_animationIntensity_animationScale_animationSpeed_animationTextureMask_inner_key_outer_power_>();
-                    info.GlowData.Add(i, DCMXSerializers.MessagePack.Serialize(virtuals));
-                }
-            }
-        }
-
-        public static void ClearSpriteCache()
-        {
-            spriteCache.Clear();
         }
     }
 }

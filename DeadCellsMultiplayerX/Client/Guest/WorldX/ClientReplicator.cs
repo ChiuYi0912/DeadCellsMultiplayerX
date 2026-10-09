@@ -3,7 +3,6 @@ using dc;
 using dc.en;
 using dc.libs.heaps.slib;
 using dc.pr;
-using DeadCellsMultiplayerX.Client.Guest.WorldX.Entities;
 using DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
@@ -19,9 +18,6 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
     internal class ClientReplicator : DisposableEventReceiver, IDisposable
     {
         private readonly GuestClientSession session;
-        private readonly Dictionary<string, ClientMob> ghosts = [];
-        private readonly Dictionary<string, SpriteLib> spriteLibs = [];
-        private readonly Dictionary<string, HSprite> spriteCache = [];
 
         public ClientReplicator(GuestClientSession session)
         {
@@ -35,32 +31,15 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
 
         protected override void MyDispose()
         {
-            foreach (var g in ghosts.Values)
-                g.mob.destroy();
-            ghosts.Clear();
-            spriteLibs.Clear();
-            spriteCache.Clear();
+            
         }
 
         public void AddGhosts(EntityInfo info, Level level, Mob mob)
         {
-            if (!ghosts.TryGetValue(info.GUID, out var _))
-            {
-                var ghost = new ClientMob(mob, info.GUID);
-                ghosts.Add(info.GUID, ghost);
-            }
+
         }
 
 
-        public SpriteLib GetSpriteLib(string atlasPath)
-        {
-            if (!spriteLibs.TryGetValue(atlasPath, out var lib))
-            {
-                lib = Assets.Class.lib.get(atlasPath.AsHaxeString());
-                spriteLibs.Add(atlasPath, lib);
-            }
-            return lib;
-        }
 
 
         private async Task PollLoop()
@@ -70,7 +49,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
 
             while (true)
             {
-                await Task.Delay((int)(1000 / 62.5));
+                await Task.Delay((int)(1000 / 30));
                 // TODO: 接入 DisposeToken
                 session.DisposeToken.ThrowIfCancellationRequested();
 
@@ -134,37 +113,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
             }
 
             //应用实体
-            ApplyAreaInfo(result.Entities, lvl);
-        }
 
-
-        public void ApplyAreaInfo(List<EntityInfo> entities, Level lvl)
-        {
-            foreach (var info in entities)
-            {
-                if (info == null) return;
-                info.localTime = session.CurrentTimeStamp;
-                ApplyEntityInfo(info, lvl);
-            }
-
-        }
-
-        public void ApplyEntityInfo(EntityInfo info, Level? lvl = null)
-        {
-            lvl ??= (Level)dc.pr.Game.Class.ME.subLevels.getDyn(info.SubLevelId);
-
-            if (ghosts.TryGetValue(info.GUID, out var ghost))
-            {
-                ghost.ApplyUpdate(info);
-            }
-            
-        }
-
-        public T? GetGhost<T>(string guid) where T : Ghost
-        {
-            if (ghosts.TryGetValue(guid, out var g))
-                return g as T;
-            return null;
         }
     }
 }

@@ -4,7 +4,7 @@ using Mirror;
 
 namespace DeadCellsMultiplayerX.Common.Data
 {
-    public class GhostSnapshot : Snapshot
+    public class GhostSnapshot : Mirror.Snapshot
     {
         public EntityInfo State = null!;
 

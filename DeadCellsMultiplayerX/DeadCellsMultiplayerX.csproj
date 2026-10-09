@@ -27,9 +27,6 @@
     <ModDependency Include="DebugConsole" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\DeadCellsSync\src\DeadCellsSync.Core\DeadCellsSync.Core.csproj" />
-  </ItemGroup>
 
   <ItemGroup>
     <Reference Include="HashlinkSharp" />

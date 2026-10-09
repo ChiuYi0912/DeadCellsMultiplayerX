@@ -1,4 +1,5 @@
 ﻿using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Common.Data.Snapshot;
 using PolyType;
 using StreamJsonRpc;
 using System;
@@ -25,17 +26,7 @@ namespace DeadCellsMultiplayerX.Client.Guest
         public Task EnterNextLevel(string levelid);
 
 
-        /// <summary>
-        /// 通知客户端更新 Entity
-        /// </summary>
-        /// <param name="info"></param>
-        public void UpdateEntity(EntityInfo info);
-
-
-        /// <summary>
-        /// 通知客户端同步玩家
-        /// </summary>
-        /// <returns></returns>
-        public Task SyncRemoteHero(EntityInfo info);
+        /// <summary>服务端每帧推送世界快照</summary>
+        public Task SyncSnapshot(WorldSnapshot snapshot);
     }
 }

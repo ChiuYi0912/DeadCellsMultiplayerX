@@ -4,6 +4,7 @@ using dc.libs.heaps.slib;
 using DeadCellsMultiplayerX.Client;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Common.Data.Snapshot;
 using DeadCellsMultiplayerX.Common.Serializers;
 using DeadCellsMultiplayerX.Utils;
 using ModCore.Utilities;
@@ -145,10 +146,7 @@ namespace DeadCellsMultiplayerX.Server.Connection
         }
 
 
-        public Task<long> GetTimeStamp()
-        {
-            return Task.FromResult(Session.CurrentTimeStamp);
-        }
+        public Task<long> GetTimeStamp() => Task.FromResult(Session.CurrentTimeStamp);
 
 
         public async Task GusetEnterNextLevel(string plyerid, string levelid)
@@ -204,9 +202,15 @@ namespace DeadCellsMultiplayerX.Server.Connection
 
         public Task Ping() => Task.CompletedTask;
 
-        public Task BroadcastSyncHero(EntityInfo info)
+        public Task BroadcastSyncHero(HeroUpload upload)
         {
-            Session.BroadcastGuestsSyncRemoteHero(info);
+            Session.BroadcastGuestsSyncRemoteHero(upload);
+            return Task.CompletedTask;
+        }
+
+        public Task SyncSnapshot(WorldSnapshot snapshot)
+        {
+            guest.SyncSnapshot(snapshot);
             return Task.CompletedTask;
         }
     }
