@@ -194,7 +194,7 @@ namespace DeadCellsMultiplayerX.Server.Connection
             }
         }
 
-        public Task AmendGameInfo(GuestGameInfo info)
+        public Task SubmitLevelVote(LevelVote info)
         {
             Session.GuestsGameInfo[info.PlyerID] = info;
             return Task.CompletedTask;

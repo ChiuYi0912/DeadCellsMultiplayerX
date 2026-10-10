@@ -48,12 +48,9 @@ namespace DeadCellsMultiplayerX.Server
         /// <returns></returns>
         public Task<byte[]> RequestAreaInfo(AreaInfoRequest request);
 
-        /// <summary>
-        /// 修改游戏中基础信息
-        /// </summary>
-        /// <param name="Guid"></param>
-        /// <returns></returns>
-        public Task AmendGameInfo(GuestGameInfo gameInfo);
+        /// <summary>提交下一关的选择（投票）</summary>
+        /// <param name="vote">玩家的关卡选择</param>
+        public Task SubmitLevelVote(LevelVote vote);
 
         /// <summary>
         /// 客户端告诉服务端,选择的下一个关卡

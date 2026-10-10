@@ -28,7 +28,7 @@ namespace DeadCellsMultiplayerX.Server
         private readonly ServerTimeSystem timeSystem = new();
 
         private readonly List<SGuestConnection> guests = [];
-        public readonly Dictionary<string, GuestGameInfo> GuestsGameInfo = [];
+        public readonly Dictionary<string, LevelVote> GuestsGameInfo = [];
 
         public long CurrentTimeStamp => timeSystem.Now;
 
@@ -99,7 +99,7 @@ namespace DeadCellsMultiplayerX.Server
 
                 guests.Add(sguest);
 
-                var gameInfo = new GuestGameInfo
+                var gameInfo = new LevelVote
                 {
                     PlyerID = guestGuid,
                 };

@@ -5,7 +5,10 @@ using System.Threading.Tasks;
 
 namespace DeadCellsMultiplayerX.Common.Data
 {
-    public class GuestGameInfo
+    /// <summary>
+    /// 用于大关卡切换时发送的数据
+    /// </summary>
+    public class LevelVote
     {
         public string PlyerID = string.Empty;
 
