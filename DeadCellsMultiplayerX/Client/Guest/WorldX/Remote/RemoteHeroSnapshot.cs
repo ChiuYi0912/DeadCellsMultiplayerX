@@ -1,14 +1,17 @@
 using DeadCellsMultiplayerX.Common.Data;
 
-namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
+namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Remote
 {
-    internal class HeroState
+    /// <summary>
+    /// 用于客户端本地存储远程hero的快照数据
+    /// </summary>
+    internal class RemoteHeroSnapshot
     {
         public PosVector Pos = new();
         public AnimInfo Anim = new();
         public List<AffectEntry> Affects = [];
 
-        public HeroState Clone() => new()
+        public RemoteHeroSnapshot Clone() => new()
         {
             Pos = Pos,
             Anim = Anim,

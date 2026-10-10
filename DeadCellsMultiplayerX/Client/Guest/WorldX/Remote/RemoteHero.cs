@@ -15,7 +15,7 @@ using ModCore.Serialization;
 using ModCore.Storage;
 using ModCore.Utilities;
 
-namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
+namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Remote
 {
     internal class RemoteHero : KingSkin, IHxbitSerializable<RemoteHero.IHxData>
     {
@@ -28,13 +28,15 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
         private const double VelocityResponse = 0.25;// 每物理帧向目标速度靠拢的比例，越大响应越快，越小越平滑
 
         // 状态
-        private readonly SnapshotBuffer<HeroState> snapshotBuffer = new(InterpolationDelaySeconds);
-        private readonly HeroState current = new();
+        private readonly SnapshotBuffer<RemoteHeroSnapshot> snapshotBuffer = new(InterpolationDelaySeconds);
+        private readonly RemoteHeroSnapshot current = new();
         private bool hasData;
         private double lastSnapX, lastSnapY;
         private string lastGroup = "";
         private long lastAppliedStartTime = -1;
         private bool inRun;
+        public string LevelId { get; set; } = string.Empty;
+        public int SubLevelIndex { get; set; } = -1;
 
         // 插值结果
         private struct InterpolatedSnapshot
@@ -88,6 +90,9 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
         //初始化皮肤
         public void ApplySpawn(HeroSpawn spawn)
         {
+            LevelId = spawn.LevelId;
+            SubLevelIndex = spawn.SubLevelId;
+
             if (string.IsNullOrEmpty(spawn.ColorMapModel)
                 || string.IsNullOrEmpty(spawn.ColorMapSkin)
                 || spawn.MainSprite == null) return;
@@ -122,6 +127,12 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
         public void PushState(HeroDynamic dyn, double serverTimeMs)
         {
             if (dyn == null) return;
+
+            if (dyn.HasLevel)
+            {
+                LevelId = dyn.LevelId;
+                SubLevelIndex = dyn.SubLevelIndex;
+            }
 
             if (dyn.HasPos) current.Pos = dyn.Pos;
             if (dyn.HasAnim) current.Anim = dyn.Anim;
@@ -180,7 +191,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
             Present(prev, next, renderTimeSec);
         }
 
-        private void Present(HeroState prev, HeroState next, double renderTimeSec)
+        private void Present(RemoteHeroSnapshot prev, RemoteHeroSnapshot next, double renderTimeSec)
         {
             //更新effct数组
             AffectCodec.Apply(this, prev.Affects, renderTimeSec);
@@ -358,7 +369,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys
 
         void IHxbitSerializable<IHxData>.SetData(IHxData data)
         {
-            
+
         }
     }
 }

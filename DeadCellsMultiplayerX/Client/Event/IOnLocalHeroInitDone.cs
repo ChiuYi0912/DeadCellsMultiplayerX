@@ -5,7 +5,7 @@ namespace DeadCellsMultiplayerX.Client.Event
 {
 
     [Event]
-    public interface IOnGuestHeroInitDone
+    public interface IOnLocalHeroInitDone
     {
         void OnHeroInitDone(Hero hero);
     }

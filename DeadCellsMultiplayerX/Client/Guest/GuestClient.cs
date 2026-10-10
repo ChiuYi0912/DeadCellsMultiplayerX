@@ -13,8 +13,7 @@ using System.Diagnostics;
 
 namespace DeadCellsMultiplayerX.Client.Guest
 {
-    internal class GuestClient(BaseNetworkConnection remote) : ClientBase,
-    IOnGuestHeroInitDone
+    internal class GuestClient(BaseNetworkConnection remote) : ClientBase
     {
         private JsonRpc? rpc;
         private IHostClientRPC? hostInterfact;
@@ -153,9 +152,5 @@ namespace DeadCellsMultiplayerX.Client.Guest
             Dispose();
         }
 
-        async void IOnGuestHeroInitDone.OnHeroInitDone(Hero hero)
-        {
-            Debug.Assert(session != null);
-        }
     }
 }

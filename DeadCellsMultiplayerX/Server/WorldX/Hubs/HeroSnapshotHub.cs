@@ -3,7 +3,7 @@ using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Common.Data.Snapshot;
 
-namespace DeadCellsMultiplayerX.Server.WorldX
+namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
 {
     /// <summary>
     /// 全局的 hero 快照缓存中心
@@ -18,11 +18,14 @@ namespace DeadCellsMultiplayerX.Server.WorldX
             public HeroDynamic? LastSent;
             public long LastClientTime;
             public uint LastFrameId;
+            public bool NeedDespawnFlag;
+            public bool NeedRespawnFlag;
         }
 
         private readonly Dictionary<string, HeroCache> heroCaches = new();
         private readonly List<HeroSpawn> pendingSpawns = new();
         private readonly List<string> pendingDespawns = new();
+        private readonly HashSet<string> pendingHeroRespawns = new();
 
         /// <summary>
         /// 客户端上传
@@ -60,6 +63,10 @@ namespace DeadCellsMultiplayerX.Server.WorldX
             c.Pending = dyn;
             c.LastClientTime = upload.ClientTime;
             c.LastFrameId = upload.FrameId;
+
+            // 记录标记
+            if (dyn.NeedDespawn) c.NeedDespawnFlag = true;
+            if (dyn.NeedRespawn) c.NeedRespawnFlag = true;
         }
 
         public void Remove(string guid)
@@ -114,13 +121,26 @@ namespace DeadCellsMultiplayerX.Server.WorldX
             return snap;
         }
 
+        //关卡切换后标记所有英雄需要重新生成
+        public void MarkRespawnAll()
+        {
+            foreach (var guid in heroCaches.Keys)
+                pendingHeroRespawns.Add(guid);
+        }
+
+        //标记单个英雄
+        public void MarkRespawn(string guid)
+        {
+            pendingHeroRespawns.Add(guid);
+        }
+
         /// <summary>
         /// 撰写每帧必须的动态包
         /// </summary>
         /// <param name="guid"></param>
         /// <param name="c"></param>
         /// <returns></returns>
-        private static HeroDynamic? BuildDynamic(string guid, HeroCache c)
+        private HeroDynamic? BuildDynamic(string guid, HeroCache c)
         {
             if (c.Pending == null) return null;
 
@@ -133,7 +153,17 @@ namespace DeadCellsMultiplayerX.Server.WorldX
             if (c.LastSent == null || !AffectEq(c.LastSent.Affects, c.Pending.Affects))
                 mask |= HeroDynamic.BitAffects;
 
-            if (mask == 0) return null;
+            if (c.LastSent == null
+                || c.LastSent.LevelId != c.Pending.LevelId
+                || c.LastSent.SubLevelIndex != c.Pending.SubLevelIndex)
+            {
+                mask |= HeroDynamic.BitLevel;
+            }
+
+            bool needDespawn = c.NeedDespawnFlag;
+            bool needRespawn = c.NeedRespawnFlag || pendingHeroRespawns.Contains(guid);
+
+            if (mask == 0 && !needDespawn && !needRespawn) return null;
 
             var dyn = new HeroDynamic
             {
@@ -144,8 +174,29 @@ namespace DeadCellsMultiplayerX.Server.WorldX
             if ((mask & HeroDynamic.BitPos) != 0) dyn.Pos = c.Pending.Pos;
             if ((mask & HeroDynamic.BitAnim) != 0) dyn.Anim = c.Pending.Anim;
             if ((mask & HeroDynamic.BitAffects) != 0) dyn.Affects = c.Pending.Affects;
+            if ((mask & HeroDynamic.BitLevel) != 0)
+            {
+                dyn.LevelId = c.Pending.LevelId;
+                dyn.SubLevelIndex = c.Pending.SubLevelIndex;
+            }
 
-            c.LastSent = dyn;
+            if (needDespawn)
+            {
+                dyn.Flags |= HeroDynamic.FlagDespawn;
+                c.NeedDespawnFlag = false;
+            }
+            if (needRespawn)
+            {
+                dyn.Flags |= HeroDynamic.FlagRespawn;
+                c.NeedRespawnFlag = false;
+                pendingHeroRespawns.Remove(guid);
+            }
+
+            if (needDespawn || needRespawn)
+                c.LastSent = null;
+            else
+                c.LastSent = dyn;
+
             return dyn;
         }
 

@@ -3,7 +3,7 @@ using dc;
 using dc.en;
 using dc.libs.heaps.slib;
 using dc.pr;
-using DeadCellsMultiplayerX.Client.Guest.WorldX.Entitys;
+using DeadCellsMultiplayerX.Client.Guest.WorldX.Remote;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Common.Serializers;
@@ -31,14 +31,8 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
 
         protected override void MyDispose()
         {
-            
+            base.MyDispose();
         }
-
-        public void AddGhosts(EntityInfo info, Level level, Mob mob)
-        {
-
-        }
-
 
 
 

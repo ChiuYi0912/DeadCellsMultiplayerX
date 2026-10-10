@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using dc.en;
 using dc.pr;
 
-namespace DeadCellsMultiplayerX.Server.WorldX
+namespace DeadCellsMultiplayerX.Server.WorldX.Authority
 {
     public class ServerHero : KingSkin
     {

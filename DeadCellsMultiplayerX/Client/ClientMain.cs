@@ -68,54 +68,40 @@ namespace DeadCellsMultiplayerX.Client
             dc.String mainId, LevelMap map, int? linkId,
             CPoint heroPosAfterBossRuneReload, Ref<bool> noLoadingData)
         {
-
-            if (CurrentHostClient == null && CurrentHostClient == null)
+            string levelid = mainId?.ToString() ?? string.Empty;
+            if (levelid == "PrisonStart" || string.IsNullOrEmpty(levelid))
             {
                 orig(arg1, mainId, map, linkId, heroPosAfterBossRuneReload, noLoadingData);
                 return;
             }
 
-            Debug.Assert(CurrentGuestClient != null);
+            if (CurrentGuestClient == null)
+            {
+                orig(arg1, mainId, map, linkId, heroPosAfterBossRuneReload, noLoadingData);
+                return;
+            }
 
             Hero hero = dc.pr.Game.Class.ME.hero;
 
-            if (hero == null && hero!.destroyed) return;
-
-            string levelid = mainId == null ? string.Empty : mainId.ToString();
-
-            if (levelid == "PrisonStart" || levelid == string.Empty)
-            {
-                orig(arg1, mainId, map, linkId, heroPosAfterBossRuneReload, noLoadingData);
-                return;
-            }
-
-            //服务器发起的过渡
             if (CurrentGuestClient.IsServerDrivenTransition)
             {
-                hero.set_targetable(true);
-                hero.unlockControls();
-                orig(arg1, mainId, map, linkId, heroPosAfterBossRuneReload, noLoadingData);
+                if (hero != null && !hero.destroyed)
+                {
+                    hero.set_targetable(true);
+                    hero.unlockControls();
+                }
 
+                orig(arg1, mainId, map, linkId, heroPosAfterBossRuneReload, noLoadingData);
                 return;
             }
 
-            //通知服务器
             _ = CurrentGuestClient.SelectNextLevel(levelid);
-
 
             if (hero != null && !hero.destroyed)
             {
                 hero.set_targetable(false);
                 hero.lockControlsF(999999);
             }
-
-#if DEBUG
-            Logger.Information("==========Test Next Level=========");
-            Logger.Information("next level mainid: {f1}", levelid);
-            Logger.Information("map id: {f1} = null", map == null);
-            Logger.Information("link id: link {f1} = null", linkId == null);
-            Logger.Information("==========Test Next Level=========");
-#endif
         }
 
         private void Hook_TitleScreen_onDispose(Hook_TitleScreen.orig_onDispose orig, TitleScreen self)
@@ -129,7 +115,7 @@ namespace DeadCellsMultiplayerX.Client
         private void Hook_Game_init(Hook_Game.orig_init orig, dc.pr.Game self)
         {
             orig(self);
-            self.gameSignals.heroInitDone.add(new HlAction<Hero>((hero) => EventSystem.BroadcastEvent<IOnGuestHeroInitDone, Hero>(hero)),
+            self.gameSignals.heroInitDone.add(new HlAction<Hero>((hero) => EventSystem.BroadcastEvent<IOnLocalHeroInitDone, Hero>(hero)),
             null, null, null);
         }
 

@@ -55,6 +55,8 @@ namespace DeadCellsMultiplayerX.Client.Guest
         public GuestClient Client { get; private set; } = null!;
         private RemoteWorld? remoteWorld;
         public volatile bool serverDrivenTransition = false;
+        private bool pendingDespawn;
+        private bool pendingRespawn;
 
         public override async Task Init()
         {
@@ -314,11 +316,25 @@ namespace DeadCellsMultiplayerX.Client.Guest
                 remoteTime: SyncedTimeMs
             );
 
+            // 处理待发送的控制标志
+            if (pendingDespawn)
+            {
+                dyn.Flags |= HeroDynamic.FlagDespawn;
+                pendingDespawn = false;
+            }
+            if (pendingRespawn)
+            {
+                dyn.Flags |= HeroDynamic.FlagRespawn;
+                pendingRespawn = false;
+            }
+
             var snapshot = new HeroUpload()
             {
                 Spawn = spawn,
                 Dynamic = dyn
             };
+
+            EventSystem.BroadcastEvent<IOnBeforeSendHero, HeroUpload>(snapshot);
 
             server.BroadcastSyncHero(snapshot);
         }
@@ -352,7 +368,11 @@ namespace DeadCellsMultiplayerX.Client.Guest
             }
         }
 
-
+        /// <summary>
+        /// 服务端调用同步客户端Hero
+        /// </summary>
+        /// <param name="snapshot"></param>
+        /// <returns></returns>
         public Task SyncSnapshot(WorldSnapshot snapshot)
         {
             timeSystem.OnSnapshot((long)snapshot.ServerTime);
@@ -360,5 +380,15 @@ namespace DeadCellsMultiplayerX.Client.Guest
             remoteWorld?.OnSnapshot(snapshot);
             return Task.CompletedTask;
         }
+
+        /// <summary>
+        /// 让所有客户端销毁我的 RemoteHero
+        /// </summary>
+        public void MarkHeroDespawn() => pendingDespawn = true;
+
+        /// <summary>
+        /// 让所有客户端重新生成我的 RemoteHero
+        /// </summary>
+        public void MarkHeroRespawn() => pendingRespawn = true;
     }
 }

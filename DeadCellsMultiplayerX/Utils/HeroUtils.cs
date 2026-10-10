@@ -52,6 +52,11 @@ namespace DeadCellsMultiplayerX.Utils
                 remoteTime / 1000.0,
                 e.cd.baseFps);
 
+            spawn.LevelId = e._level.map?.id?.ToString() ?? string.Empty;
+            dyn.LevelId = spawn.LevelId;
+            dyn.SubLevelIndex = e._level.GetSubLevelIndex();
+            dyn.ChangeMask |= HeroDynamic.BitLevel;
+
             if (e.spr != null)
             {
                 dyn.Pos = new PosVector(

@@ -19,6 +19,7 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
         [Key(4)] public int SubLevelId = -1;
         [Key(5)] public SpriteInfo MainSprite = new();
         [Key(6)] public Dictionary<int, byte[]> GlowData = [];
+        [Key(7)] public string LevelId = string.Empty;
 
 
         /// <summary>
