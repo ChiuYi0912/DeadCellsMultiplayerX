@@ -8,7 +8,6 @@ using ModCore;
 using DeadCellsMultiplayerX.Client.UI;
 using dc;
 using ModCore.Modules;
-using DeadCellsMultiplayerX.Client.UI.Modes;
 using ModCore.Events;
 using dc.en;
 using DeadCellsMultiplayerX.Client.Event;
@@ -19,6 +18,9 @@ using dc.tool;
 using System.Diagnostics;
 using dc.libs.heaps.slib;
 using dc.hxd.res;
+using System.Security.Cryptography.X509Certificates;
+using Hashlink.Virtuals;
+using ModCore.Utilities;
 
 namespace DeadCellsMultiplayerX.Client
 {
@@ -37,7 +39,8 @@ namespace DeadCellsMultiplayerX.Client
         /// <summary>
         /// 连接大厅
         /// </summary>
-        public LobbyMenu? lobby { get; internal set; }
+        public LobbyMenuX? lobbyMenu { get; internal set; }
+
 
         public readonly Dictionary<object, string> spriteLib2altas = [];
 
@@ -108,8 +111,6 @@ namespace DeadCellsMultiplayerX.Client
         {
             orig(self);
             EventSystem.BroadcastEvent<IOnLobbyMenuDisposed>();
-            lobby?.Hide();
-            lobby?.destroy();
         }
 
         private void Hook_Game_init(Hook_Game.orig_init orig, dc.pr.Game self)
@@ -204,31 +205,19 @@ namespace DeadCellsMultiplayerX.Client
 
         private void Hook__TitleScreen__constructor__(Hook__TitleScreen.orig___constructor__ orig, TitleScreen arg1, bool? playMusic)
         {
-            lobby = new(this, arg1);
             orig(arg1, playMusic);
-
-            lobby.createRootInLayers(Main.Class.ME.root, dc.Const.Class.ROOT_DP_MENU);
-            lobby.controllerHelper = new(ModConfig.Config, lobby.config.ControlKeys, arg1.controller.parent);
-            lobby.fControlLabel = new dc.h2d.Flow(null);
-            lobby.setControlLabelKeys();
-            lobby.onResize();
-            lobby.RegisterMode(new DefaultMode(lobby));
-            lobby.RegisterMode(new SteamMode(lobby));
-
-            if (lobby.curTopbts > lobby.modes.Count - 1 || lobby.curTopbts < 0)
-                lobby.curTopbts = 0;
+            
         }
 
         private void Hook_TitleScreen_mainMenu(
             Hook_TitleScreen.orig_mainMenu orig, TitleScreen self)
         {
             orig(self);
-            lobby!.BuildMenuChild("Test_Host", () => Test.Start());
 
             const int Index = 1;
 
             int color = (255 << 16) | (215 << 8) | 0;
-            lobby!.BuildMenuChild("Online", () => lobby.Show(), color: color);
+            BuildMenuChild("Online", () => OpenLobby(), color: color);
 
             var wrapper = self.menuItemsWrapper;
             var menu = wrapper.children.getDyn(wrapper.children.length - 1);
@@ -240,9 +229,28 @@ namespace DeadCellsMultiplayerX.Client
 
             self.fControlLabel.reflow();
             self.select(0, default);
+
+            DebugLauncher.TriggerAutoJoin();
         }
+        
         private static string T(string key) => GetText.Instance.GetString(key);
 
+        private void OpenLobby()
+        {
+            if (lobbyMenu != null && !lobbyMenu.IsDisposed) return;
+
+            lobbyMenu = new LobbyMenuX(
+                client: this,
+                titleScreen: TitleScreen.Class.ME
+            );
+        }
+
+        public virtual_cb_help_inter_isEnable_t_<bool> BuildMenuChild(
+        string text, HlAction cb, string? help = null, bool? isEnable = null, int color = 0xFFFFFF)
+        {
+            return TitleScreen.Class.ME.addMenu(text.AsHaxeString(), cb,
+                help?.AsHaxeString(), isEnable, Ref<int>.From(ref color));
+        }
         #endregion
     }
 }
