@@ -12,7 +12,7 @@ namespace DeadCellsMultiplayerX
             @"D:\steam\steamapps\common\Dead Cells\coremod\core\host\startup\DeadCellsModding.exe";
 
         private static ILogger? MyLogger;
-        private static ILogger logger => MyLogger ??= Log.ForContext("Source", nameof(DebugLauncher));
+        private static ILogger logger => MyLogger ??= Log.ForContext(nameof(DebugLauncher), nameof(DebugLauncher));
 
 
         private static string? autoAddr;

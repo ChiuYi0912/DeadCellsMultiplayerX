@@ -17,13 +17,18 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.LocalHero
         private readonly GuestClientSession session;
         private readonly LocalHeroContext ctx = new();
         private readonly RemoteWorld remoteWorld;
-
         public LocalHeroContext Context => ctx;
+        public double SyncedTimeMs => session.SyncedTimeMs;
 
         public LocalHeroState(GuestClientSession session, RemoteWorld remoteWorld)
         {
             this.session = session;
             this.remoteWorld = remoteWorld;
+
+            ctx.HasHero = true;
+            ctx.IsAlive = !session.Game.hero.destroyed;
+
+            SyncLevelSnapshot(session.Game);
         }
 
         void IOnLocalHeroInitDone.OnHeroInitDone(Hero hero)
