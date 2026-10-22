@@ -9,12 +9,24 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
     [MessagePackObject]
     public class HeroUpload
     {
-        [Key(0)] public long ClientTime;    //客户端本地时间
+        /// <summary>
+        /// 客户端本地时间
+        /// </summary>
+        [Key(0)] public long ClientTime;
 
-        [Key(1)] public uint FrameId;   //客户端帧号
+        /// <summary>
+        /// 客户端帧号
+        /// </summary>
+        [Key(1)] public uint FrameId;
 
-        [Key(2)] public HeroSpawn? Spawn;   //静态数据
+        /// <summary>
+        /// 静态数据
+        /// </summary>
+        [Key(2)] public HeroSpawn? Spawn;
 
-        [Key(3)] public HeroDynamic Dynamic = null!;    //动态数据
+        /// <summary>
+        /// 动态数据
+        /// </summary>
+        [Key(3)] public HeroDynamic Dynamic = null!;
     }
 }

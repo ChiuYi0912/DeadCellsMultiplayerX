@@ -15,9 +15,33 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.LocalHero
         IOnLocalHeroPostUpdate
     {
         private readonly GuestClientSession session;
-        private readonly LocalHeroContext ctx = new();
         private readonly RemoteWorld remoteWorld;
+
+        /// <summary>
+        /// 本地hero基本信息
+        /// </summary>
+        private readonly LocalHeroContext ctx = new();
+
+#if DEBUG
+
+
+        /// <summary>
+        /// 用于调试关卡改变时打印日志
+        /// </summary>
+        /// <remarks>
+        /// 存储格式为：<c>string lastLevelSignature = $"{LevelId}#{SubLevelIndex}";</c>
+        /// </remarks>
+        private string DEBUGlastLevelSignature = string.Empty;
+#endif
+
+        /// <summary>
+        /// 外部获取hero上下文
+        /// </summary>
         public LocalHeroContext Context => ctx;
+
+        /// <summary>
+        /// 同步时间
+        /// </summary>
         public double SyncedTimeMs => session.SyncedTimeMs;
 
         public LocalHeroState(GuestClientSession session, RemoteWorld remoteWorld)
@@ -51,10 +75,10 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.LocalHero
             ctx.IsAlive = ctx.HasHero && hero.life > 0;
             ctx.InCinematic = game.hasCinematic();
 
-            UpdateLevel(game);
+            UpdateLevel(game, hero);
         }
 
-        private void UpdateLevel(Game game)
+        private void UpdateLevel(Game game, Hero hero)
         {
             if (game == null)
             {
@@ -62,50 +86,51 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.LocalHero
                 return;
             }
 
-            var curLevel = game.curLevel;
-            if (curLevel == null)
+            // hero存在时才进行状态刷新
+            var level = hero?._level;
+            if (level == null)
             {
                 return;
             }
 
-            string newLevelId = curLevel.map?.id?.ToString() ?? string.Empty;
-            bool inSubLevel = IsInSubLevel(game, curLevel);
-            int subLevelIndex = SafeGetSubLevelIndex(curLevel);
+            ctx.CurrentLevelId = level.map?.id?.ToString() ?? string.Empty;
+            ctx.SubLevelIndex = SafeGetSubLevelIndex(level);
+            ctx.InSubLevel = IsInSubLevel(game, level);
 
-            // 计算变化
-            bool subLevelChanged = inSubLevel != ctx.InSubLevel;
-            bool levelChanged = !string.IsNullOrEmpty(ctx.CurrentLevelId)
-                             && newLevelId != ctx.CurrentLevelId;
-
-            // 更新 context
-            ctx.CurrentLevelId = newLevelId;
-            ctx.SubLevelIndex = subLevelIndex;
-            ctx.InSubLevel = inSubLevel;
-
-            // 触发同步标志（互斥，避免同帧多次 Mark）
-            if (subLevelChanged)
+#if DEBUG
+            string signature = $"{ctx.CurrentLevelId}#{ctx.SubLevelIndex}";
+            if (signature != DEBUGlastLevelSignature)
             {
-                if (inSubLevel)
-                    session.MarkHeroDespawn();
-                else
-                    session.MarkHeroRespawn();
+                DEBUGlastLevelSignature = signature;
+                Logger.Information(
+                    "Local level: {LevelId}#{SubLevelIndex} inSubLevel={InSubLevel}",
+                    ctx.CurrentLevelId, ctx.SubLevelIndex, ctx.InSubLevel);
             }
-            else if (levelChanged)
-            {
-                session.MarkHeroRespawn();
-            }
+#endif
         }
 
+        /// <summary>
+        /// 用于hero初始化时更新关卡信息
+        /// </summary>
+        /// <param name="game"></param>
         private void SyncLevelSnapshot(Game game)
         {
-            if (game?.curLevel == null) return;
+            if (game == null) return;
 
-            ctx.CurrentLevelId = game.curLevel.map?.id?.ToString() ?? string.Empty;
-            ctx.SubLevelIndex = SafeGetSubLevelIndex(game.curLevel);
-            ctx.InSubLevel = IsInSubLevel(game, game.curLevel);
+            var level = game.hero?._level ?? game.curLevel;
+            if (level == null) return;
+
+            ctx.CurrentLevelId = level.map?.id?.ToString() ?? string.Empty;
+            ctx.SubLevelIndex = SafeGetSubLevelIndex(level);
+            ctx.InSubLevel = IsInSubLevel(game, level);
         }
 
-        //子区域判断
+        /// <summary>
+        /// 子关卡id判断
+        /// </summary>
+        /// <param name="game"></param>
+        /// <param name="curLevel"></param>
+        /// <returns></returns>
         private static bool IsInSubLevel(Game game, Level curLevel)
         {
             var subLevels = game.subLevels;
@@ -116,12 +141,16 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.LocalHero
             return mainLevel != null && curLevel != mainLevel;
         }
 
+        
         private static int SafeGetSubLevelIndex(Level level)
         {
             try { return level.GetSubLevelIndex(); }
             catch { return -1; }
         }
 
+        /// <summary>
+        /// 重置关卡信息
+        /// </summary>
         private void ResetLevelInfo()
         {
             ctx.CurrentLevelId = string.Empty;

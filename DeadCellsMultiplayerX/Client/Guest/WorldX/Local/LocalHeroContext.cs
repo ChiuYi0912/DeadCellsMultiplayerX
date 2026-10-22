@@ -1,21 +1,41 @@
 namespace DeadCellsMultiplayerX.Client.Guest.WorldX.LocalHero
 {
     /// <summary>
-    /// 本地 Hero 的状态快照，只读
+    /// 本地 Hero 的状态快照
     /// </summary>
+    /// <remarks>
+    /// 唯一实例位于 <see cref="LocalHeroState"/> 中
+    /// </remarks>
     internal class LocalHeroContext
     {
-        public bool InSubLevel;     //是否正在子关卡中
+        /// <summary>
+        /// 是否正在子关卡中
+        /// </summary>
+        public bool InSubLevel;
 
-        public string CurrentLevelId = string.Empty;    //当前 level id
+        /// <summary>
+        /// 当前 level id
+        /// </summary>
+        public string CurrentLevelId = string.Empty;
 
+        /// <summary>
+        /// 是否在过场动画
+        /// </summary>
+        public bool InCinematic;
 
-        public bool InCinematic;    //是否在过场动画
+        /// <summary>
+        /// 当前 sublevel 索引
+        /// </summary>
+        public int SubLevelIndex = -1;
 
-        public int SubLevelIndex = -1;  //当前 sublevel 索引
+        /// <summary>
+        /// 本地 Hero 是否存在
+        /// </summary>
+        public bool HasHero;
 
-        public bool HasHero;    //本地 Hero 是否存在
-
-        public bool IsAlive;    //本地 Hero 是否活着
+        /// <summary>
+        /// 本地 Hero 是否活着
+        /// </summary>
+        public bool IsAlive;
     }
 }

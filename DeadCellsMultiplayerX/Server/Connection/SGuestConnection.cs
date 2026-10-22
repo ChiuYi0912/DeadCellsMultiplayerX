@@ -7,6 +7,7 @@ using DeadCellsMultiplayerX.Client.Host;
 using DeadCellsMultiplayerX.Client.Networks;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Common.Data.Snapshot;
 using DeadCellsMultiplayerX.Server.Events;
 using DeadCellsMultiplayerX.Utils;
 using Hashlink.Virtuals;
@@ -79,10 +80,35 @@ namespace DeadCellsMultiplayerX.Server.Connection
 
         protected override void MyDispose()
         {
+            Session.RemoveGuest(this);
+
             base.MyDispose();
 
             rpc?.Dispose();
         }
+
+        /// <summary>广播一帧世界快照(不阻塞游戏线程)。</summary>
+        public void PushWorldFrame(WorldFrame frame)
+        {
+            if (IsDisposed || rpc.IsDisposed) return;
+
+            try
+            {
+                var task = guest.SyncWorldFrame(frame);
+                _ = task.ContinueWith(
+                    t => Logger.Warning(t.Exception, "SyncWorldFrame failed"),
+                    TaskContinuationOptions.OnlyOnFaulted);
+            }
+            catch (Exception ex)
+            {
+                // 同步序列化/连接异常不能冒泡到广播循环,否则会打断整个服务端 tick
+                Logger.Warning(ex, "SyncWorldFrame failed (sync)");
+            }
+        }
+
+        /// <summary>向该客户端请求补发上传帧。</summary>
+        public Task<ClientFrameBundle> RequestClientFrames(ClientFrameRangeRequest request)
+            => guest.RequestClientFrames(request);
 
 
 

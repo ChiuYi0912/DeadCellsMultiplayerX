@@ -42,7 +42,7 @@ namespace DeadCellsMultiplayerX.Utils
             HeroDynamic dyn,
             long remoteTime)
         {
-            spawn.TypeName = e.GetType().FullName ?? string.Empty;
+            //spawn.TypeName = e.GetType().FullName ?? string.Empty;
 
             if (!e.initDone) return;
 

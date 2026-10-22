@@ -26,7 +26,10 @@ namespace DeadCellsMultiplayerX.Client.Guest
         public Task EnterNextLevel(string levelid);
 
 
-        /// <summary>服务端每帧推送世界快照</summary>
-        public Task SyncSnapshot(WorldSnapshot snapshot);
+        /// <summary>服务端每 tick 推送完整世界帧</summary>
+        public Task SyncWorldFrame(WorldFrame frame);
+
+        /// <summary>服务端请求补发缺失的客户端上传帧</summary>
+        public Task<ClientFrameBundle> RequestClientFrames(ClientFrameRangeRequest request);
     }
 }

@@ -5,6 +5,7 @@ using dc.pr;
 using dc.tool;
 using DeadCellsMultiplayerX.Client.Event;
 using DeadCellsMultiplayerX.Client.Guest.WorldX;
+using DeadCellsMultiplayerX.Client.Guest.WorldX.Snapshot;
 using DeadCellsMultiplayerX.Client.Host;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Common.Data.Snapshot;
@@ -28,7 +29,8 @@ namespace DeadCellsMultiplayerX.Client.Guest
     internal class GuestClientSession(GuestClient client, Stream serverStream) : ClientSession,
         IGuestRPC,
         IOnFrameUpdate,
-        IOnLocalHeroPostUpdate
+        IOnLocalHeroPostUpdate,
+        IOnLocalHeroInitDone
     {
         private JsonRpc? rpc;
         private IServerRPC server = null!;
@@ -45,7 +47,9 @@ namespace DeadCellsMultiplayerX.Client.Guest
         private long lastNtpRequestMs;
         private const long NtpIntervalMs = 500;
 
-        // 对外：所有网络相关逻辑用这个
+        /// <summary>
+        /// 与服务端同步的时间轴
+        /// </summary>
         public long SyncedTimeMs => timeSystem.SyncedTime;
         #endregion
 
@@ -55,8 +59,13 @@ namespace DeadCellsMultiplayerX.Client.Guest
         public GuestClient Client { get; private set; } = null!;
         private RemoteWorld? remoteWorld;
         public volatile bool serverDrivenTransition = false;
-        private bool pendingDespawn;
-        private bool pendingRespawn;
+        private readonly ClientWorldSendBuffer sendBuffer = new();
+        private long lastServerFrameTimeMs = long.MinValue;
+
+        // 同一时间只保留一个在途请求,避免连接异常时 RPC 队列堆积
+        private Task? uploadTask;
+        private long lastUploadErrorLogMs;
+        private bool uploadBroken;
 
         public override async Task Init()
         {
@@ -104,16 +113,14 @@ namespace DeadCellsMultiplayerX.Client.Guest
                 Debug.Assert(System.IO.File.Exists(fp));
 
                 await server.UploadSavedata(await System.IO.File.ReadAllBytesAsync(fp));
-
-
             }
-
-
         }
 
         private void InitWorld()
         {
+            remoteWorld?.Dispose();
             remoteWorld = new RemoteWorld(this, client.Guid);
+            sendBuffer.ResetLocalHeroState();
         }
 
         private void InitHooks()
@@ -195,6 +202,10 @@ namespace DeadCellsMultiplayerX.Client.Guest
         protected override void MyDispose()
         {
             base.MyDispose();
+
+            remoteWorld?.Dispose();
+            remoteWorld = null;
+            sendBuffer.Clear();
 
             serverStream?.Dispose();
             replicator?.Dispose();
@@ -287,9 +298,16 @@ namespace DeadCellsMultiplayerX.Client.Guest
         {
             // 同步 TimeStamp
             TickTimeSystem();
+
+            // 世界帧 NACK 调度/超时
+            remoteWorld?.Tick(SyncedTimeMs);
         }
 
-
+        /// <summary>
+        /// 服务端调用,用于通知当前客户切换关卡
+        /// </summary>
+        /// <param name="levelid"></param>
+        /// <returns></returns>
         public Task EnterNextLevel(string levelid)
         {
             serverDrivenTransition = true;
@@ -306,37 +324,54 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
         void IOnLocalHeroPostUpdate.OnPostUpdate(Hero hero)
         {
+            if (IsDisposed || uploadBroken) return;
+
             var game = dc.pr.Game.Class.ME;
             if (hero != game?.hero) return;
             if (hero.destroyed) return;
 
-            var (spawn, dyn) = HeroUtils.Collect(
-                hero,
-                guid: Client.Guid,
-                remoteTime: SyncedTimeMs
-            );
+            // 每帧都采集最新状态;发送受背压控制,未发送的帧会被下一帧覆盖
+            if (!sendBuffer.Capture(hero, Client.Guid, SyncedTimeMs)) return;
 
-            // 处理待发送的控制标志
-            if (pendingDespawn)
+            if (uploadTask != null && !uploadTask.IsCompleted) return;
+
+            var frame = sendBuffer.BuildFrameAndRecord();
+            if (frame == null) return;
+
+#if DEBUG
+            if (WorldFrameDebug.ConsumeSkipClientUpload()) return;
+#endif
+
+            try
             {
-                dyn.Flags |= HeroDynamic.FlagDespawn;
-                pendingDespawn = false;
+                uploadTask = server.UploadClientWorldFrame(frame);
+                _ = uploadTask.ContinueWith(OnUploadFaulted, TaskContinuationOptions.OnlyOnFaulted);
             }
-            if (pendingRespawn)
+            catch (Exception ex)
             {
-                dyn.Flags |= HeroDynamic.FlagRespawn;
-                pendingRespawn = false;
+                HandleUploadFailure(ex);
+            }
+        }
+
+        private void OnUploadFaulted(Task task)
+            => HandleUploadFailure(task.Exception?.GetBaseException());
+
+        private void HandleUploadFailure(Exception? ex)
+        {
+            if (IsDisposed) return;
+
+            // 连接已经断开时,等待 Rpc_Disconnected 清理
+            if (ex is ConnectionLostException or OperationCanceledException)
+            {
+                uploadBroken = true;
+                return;
             }
 
-            var snapshot = new HeroUpload()
-            {
-                Spawn = spawn,
-                Dynamic = dyn
-            };
+            long now = Environment.TickCount64;
+            if (now - lastUploadErrorLogMs < 1000) return;
 
-            EventSystem.BroadcastEvent<IOnBeforeSendHero, HeroUpload>(snapshot);
-
-            server.BroadcastSyncHero(snapshot);
+            lastUploadErrorLogMs = now;
+            Logger.Warning("UploadClientWorldFrame failed: {Message}", ex?.Message ?? "unknown");
         }
 
         private void TickTimeSystem()
@@ -369,26 +404,40 @@ namespace DeadCellsMultiplayerX.Client.Guest
         }
 
         /// <summary>
-        /// 服务端调用同步客户端Hero
+        /// 服务端每 tick 推送完整世界帧
         /// </summary>
-        /// <param name="snapshot"></param>
-        /// <returns></returns>
-        public Task SyncSnapshot(WorldSnapshot snapshot)
+        public Task SyncWorldFrame(WorldFrame frame)
         {
-            timeSystem.OnSnapshot((long)snapshot.ServerTime);
+            if (frame == null) return Task.CompletedTask;
 
-            remoteWorld?.OnSnapshot(snapshot);
+#if DEBUG
+            if (WorldFrameDebug.ConsumeDropServerFrame())
+                return Task.CompletedTask;
+#endif
+
+            ObserveWorldEpoch(frame.Epoch);
+            ObserveServerTime((long)frame.ServerTimeMs);
+            remoteWorld?.OnWorldFrame(frame);
             return Task.CompletedTask;
         }
 
-        /// <summary>
-        /// 让所有客户端销毁我的 RemoteHero
-        /// </summary>
-        public void MarkHeroDespawn() => pendingDespawn = true;
+        /// <summary>服务端请求补发本地上传帧</summary>
+        public Task<ClientFrameBundle> RequestClientFrames(ClientFrameRangeRequest request)
+            => Task.FromResult(sendBuffer.BuildBundle(request));
 
-        /// <summary>
-        /// 让所有客户端重新生成我的 RemoteHero
-        /// </summary>
-        public void MarkHeroRespawn() => pendingRespawn = true;
+        internal void ObserveWorldEpoch(int epoch) => sendBuffer.SetEpoch(epoch);
+
+        internal void ObserveServerTime(long serverTimeMs)
+        {
+            if (serverTimeMs <= lastServerFrameTimeMs) return;
+
+            lastServerFrameTimeMs = serverTimeMs;
+            timeSystem.OnSnapshot(serverTimeMs);
+        }
+
+        void IOnLocalHeroInitDone.OnHeroInitDone(Hero hero)
+        {
+            sendBuffer.ResetLocalHeroState();
+        }
     }
 }

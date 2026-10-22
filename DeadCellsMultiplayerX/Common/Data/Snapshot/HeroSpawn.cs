@@ -7,19 +7,55 @@ using MessagePack;
 namespace DeadCellsMultiplayerX.Common.Data.Snapshot
 {
     /// <summary>
-    /// 首次初始化hero
+    /// 初始化hero
     /// </summary>
     [MessagePackObject]
     public class HeroSpawn
-    {
+    {   
+        /// <summary>
+        /// 客户id
+        /// </summary>
         [Key(0)] public string GUID = string.Empty;
+
+        /// <summary>
+        /// 记录所操控的实体,用于后续变身模式
+        /// </summary>
         [Key(1)] public string TypeName = string.Empty;
+
+        /// <summary>
+        /// 皮肤贴图名
+        /// </summary>
         [Key(2)] public string ColorMapModel = string.Empty;
+
+        /// <summary>
+        /// 色带图
+        /// </summary>
         [Key(3)] public string ColorMapSkin = string.Empty;
+
+        /// <summary>
+        /// 当前所在的子关卡id
+        /// </summary>
         [Key(4)] public int SubLevelId = -1;
+
+        /// <summary>
+        /// 贴图状态
+        /// </summary>
         [Key(5)] public SpriteInfo MainSprite = new();
+
+        /// <summary>
+        /// 皮肤发光数据
+        /// </summary>
         [Key(6)] public Dictionary<int, byte[]> GlowData = [];
+
+        /// <summary>
+        /// 当前的关卡id
+        /// </summary>
         [Key(7)] public string LevelId = string.Empty;
+
+        /// <summary>
+        /// 服务端分配,静态数据变化时递增
+        /// </summary>
+        [Key(8)] public uint Version;
 
 
         /// <summary>

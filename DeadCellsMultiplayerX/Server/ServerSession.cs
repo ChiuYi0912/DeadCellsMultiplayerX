@@ -3,6 +3,7 @@ using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
 using DeadCellsMultiplayerX.Common.Data.Snapshot;
 using DeadCellsMultiplayerX.Server.Connection;
+using DeadCellsMultiplayerX.Server.Events;
 using DeadCellsMultiplayerX.Server.WorldX;
 using DeadCellsMultiplayerX.Server.WorldX.Hubs;
 using DeadCellsMultiplayerX.Utils;
@@ -15,7 +16,8 @@ using System.IO.Pipes;
 namespace DeadCellsMultiplayerX.Server
 {
     internal class ServerSession : DisposableEventReceiver,
-        IOnFrameUpdate
+        IOnFrameUpdate,
+        IOnServerEnterNewLevel
     {
         public AnonymousPipeClientStream outPipe = new(PipeDirection.Out, Environment.GetEnvironmentVariable("DCMP_HOST_IN_PIPE")!);
         public AnonymousPipeClientStream inPipe = new(PipeDirection.In, Environment.GetEnvironmentVariable("DCMP_HOST_OUT_PIPE")!);
@@ -24,17 +26,21 @@ namespace DeadCellsMultiplayerX.Server
         private MultiplexingStream.Channel? mainChannel;
         private Stream? mainChannelReader;
         private ServerMainThread? mainThread;
-        private HeroSnapshotHub heroHub = new();
         private readonly ServerTimeSystem timeSystem = new();
+        private readonly ClientWorldFrameCollector clientFrames = new();
+        private readonly ServerWorldBroadcaster broadcaster;
 
         private readonly List<SGuestConnection> guests = [];
         public readonly Dictionary<string, LevelVote> GuestsGameInfo = [];
 
         public long CurrentTimeStamp => timeSystem.Now;
+        public ClientWorldFrameCollector ClientFrames => clientFrames;
+        public ServerWorldBroadcaster Broadcaster => broadcaster;
 
-        // 发送节流（20Hz）
-        private double sendAccumulator;
-        private const double SendInterval = 0.05;
+        public ServerSession()
+        {
+            broadcaster = new ServerWorldBroadcaster(clientFrames);
+        }
 
         public ServerMainThread Main => mainThread ?? throw new InvalidOperationException();
 
@@ -105,6 +111,8 @@ namespace DeadCellsMultiplayerX.Server
                 };
                 GuestsGameInfo.Add(guestGuid, gameInfo);
 
+                clientFrames.Register(guestGuid, sguest.RequestClientFrames);
+
                 Logger.Information("Client Enter : {guid}", guestGuid);
             }
         }
@@ -130,34 +138,44 @@ namespace DeadCellsMultiplayerX.Server
             return Task.CompletedTask;
         }
 
-        public Task BroadcastGuestsSyncRemoteHero(HeroUpload upload)
+        public void RemoveGuest(SGuestConnection guest)
         {
-            heroHub.Upload(upload);
-            return Task.CompletedTask;
+            if (guest == null) return;
+
+            guests.Remove(guest);
+
+            string guid = guest.GuestInfo.Guid;
+            if (string.IsNullOrEmpty(guid)) return;
+
+            GuestsGameInfo.Remove(guid);
+            clientFrames.Unregister(guid);
         }
 
         void IOnFrameUpdate.OnFrameUpdate(double dt)
         {
             timeSystem.Tick();
 
-            TickHeroSync(dt);
+            try
+            {
+                clientFrames.Tick(CurrentTimeStamp);
+                broadcaster.Tick(dt, CurrentTimeStamp, guests.ToArray());
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "World frame tick failed");
+            }
         }
 
-        /// <summary>
-        /// 玩家同步，20Hz 固定发送
-        /// </summary>
-        /// <param name="dt"></param>
-        private void TickHeroSync(double dt)
+        void IOnServerEnterNewLevel.OnServerEnterNewLevel()
         {
-            sendAccumulator += dt;
-            if (sendAccumulator < SendInterval) return;
-            sendAccumulator -= SendInterval;
+            broadcaster.BeginEpoch(CurrentTimeStamp);
+        }
 
-            var snap = heroHub.Flush(CurrentTimeStamp);
-            if (snap == null) return;
-
-            foreach (var guest in guests)
-                guest.SyncSnapshot(snap);
+        protected override void MyDispose()
+        {
+            broadcaster.Clear();
+            clientFrames.Clear();
+            base.MyDispose();
         }
     }
 }

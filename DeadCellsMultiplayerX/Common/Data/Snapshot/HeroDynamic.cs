@@ -20,14 +20,50 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
         public const uint FlagDespawn = 1 << 0;   // 销毁（进入子关卡或者以切换关卡）
         public const uint FlagRespawn = 1 << 1;   // 重新生成
 
+        /// <summary>
+        /// 客户id
+        /// </summary>
         [Key(0)] public string GUID = string.Empty;
+
+        /// <summary>
+        /// 记录特定数据是否变化
+        /// </summary>
         [Key(1)] public uint ChangeMask;
+
+        /// <summary>
+        /// 位置状态
+        /// </summary>
         [Key(2)] public PosVector Pos = new();
+
+        /// <summary>
+        /// 动画状态
+        /// </summary>
         [Key(3)] public AnimInfo Anim = new();
+
+        /// <summary>
+        /// 状态机数据
+        /// </summary>
         [Key(5)] public List<AffectEntry> Affects = [];
+
+        /// <summary>
+        /// 标志
+        /// </summary>
         [Key(6)] public uint Flags;
+
+        /// <summary>
+        /// 关卡id
+        /// </summary>
         [Key(7)] public string LevelId = string.Empty;
+
+        /// <summary>
+        /// 子关卡id
+        /// </summary>
         [Key(8)] public int SubLevelIndex = -1;
+
+        /// <summary>
+        /// 对应 HeroSpawn.Version,用于检测静态数据缺失
+        /// </summary>
+        [Key(9)] public uint SpawnVersion;
 
         public const uint BitAll = BitPos | BitAnim | BitAffects | BitLevel;
 

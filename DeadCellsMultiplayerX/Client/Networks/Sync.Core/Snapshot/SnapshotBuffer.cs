@@ -24,6 +24,11 @@ public sealed class SnapshotBuffer<T>
     public int Count => _buffer.Count;
 
     /// <summary>
+    /// 只读历史视图（旧 -> 新，与内部存储同序）。不要在枚举期间调用会修改缓冲区的 API。
+    /// </summary>
+    public IReadOnlyList<(double time, T state)> Entries => _buffer;
+
+    /// <summary>
     /// Ingests a snapshot for time <paramref name="time"/>. Out-of-order arrivals are inserted in
     /// sorted position; an exact duplicate timestamp is ignored.
     /// </summary>
@@ -45,6 +50,24 @@ public sealed class SnapshotBuffer<T>
     }
 
     public void Clear() => _buffer.Clear();
+
+    /// <summary>
+    /// 丢弃时间早于 <paramref name="oldestTimeInclusive"/> 的样本，并把数量限制在
+    /// <paramref name="maxCount"/> 以内（超限时优先删除最旧的样本）。
+    /// </summary>
+    public void Trim(double oldestTimeInclusive, int maxCount)
+    {
+        int removeCount = 0;
+        while (removeCount < _buffer.Count && _buffer[removeCount].time < oldestTimeInclusive)
+            removeCount++;
+
+        int overflow = _buffer.Count - removeCount - maxCount;
+        if (overflow > 0)
+            removeCount += overflow;
+
+        if (removeCount > 0)
+            _buffer.RemoveRange(0, removeCount);
+    }
 
     /// <summary>
     /// Finds the two snapshots that bracket the render time for <paramref name="localTimeSeconds"/>

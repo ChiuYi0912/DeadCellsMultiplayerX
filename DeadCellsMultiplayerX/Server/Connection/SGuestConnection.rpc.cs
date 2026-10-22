@@ -202,16 +202,20 @@ namespace DeadCellsMultiplayerX.Server.Connection
 
         public Task Ping() => Task.CompletedTask;
 
-        public Task BroadcastSyncHero(HeroUpload upload)
+        public Task UploadClientWorldFrame(ClientWorldFrame frame)
         {
-            Session.BroadcastGuestsSyncRemoteHero(upload);
+            Session.ClientFrames.OnFrame(GuestInfo.Guid, frame);
             return Task.CompletedTask;
         }
 
-        public Task SyncSnapshot(WorldSnapshot snapshot)
+        public Task<WorldFrameBundle> RequestWorldFrames(WorldFrameRangeRequest request)
         {
-            guest.SyncSnapshot(snapshot);
-            return Task.CompletedTask;
+            return Task.FromResult(Session.Broadcaster.GetFrames(request, Session.CurrentTimeStamp));
+        }
+
+        public Task<WorldResync> RequestWorldResync(int knownEpoch)
+        {
+            return Task.FromResult(Session.Broadcaster.BuildResync(Session.CurrentTimeStamp));
         }
     }
 }

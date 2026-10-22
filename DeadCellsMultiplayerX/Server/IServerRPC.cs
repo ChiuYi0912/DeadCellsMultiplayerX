@@ -71,10 +71,18 @@ namespace DeadCellsMultiplayerX.Server
         public Task Ping();
 
         /// <summary>
-        /// 客户端调用,用于给服务端发送hero信息,客户端负责广播给其他玩家
+        /// 客户端每帧上传本地世界帧
         /// </summary>
-        /// <param name="info"></param>
-        /// <returns></returns>
-        public Task BroadcastSyncHero(HeroUpload info);
+        public Task UploadClientWorldFrame(ClientWorldFrame frame);
+
+        /// <summary>
+        /// 请求补发缺失的服务端世界帧;历史已淘汰时返回全量基线
+        /// </summary>
+        public Task<WorldFrameBundle> RequestWorldFrames(WorldFrameRangeRequest request);
+
+        /// <summary>
+        /// 请求全量世界基线
+        /// </summary>
+        public Task<WorldResync> RequestWorldResync(int knownEpoch);
     }
 }
