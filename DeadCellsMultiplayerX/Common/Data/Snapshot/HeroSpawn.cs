@@ -15,47 +15,47 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
         /// <summary>
         /// 客户id
         /// </summary>
-        [Key(0)] public string GUID = string.Empty;
+        [Key(0)] public string GUID { get; set; } = string.Empty;
 
         /// <summary>
         /// 记录所操控的实体,用于后续变身模式
         /// </summary>
-        [Key(1)] public string TypeName = string.Empty;
+        [Key(1)] public string TypeName { get; set; } = string.Empty;
 
         /// <summary>
         /// 皮肤贴图名
         /// </summary>
-        [Key(2)] public string ColorMapModel = string.Empty;
+        [Key(2)] public string ColorMapModel { get; set; } = string.Empty;
 
         /// <summary>
         /// 色带图
         /// </summary>
-        [Key(3)] public string ColorMapSkin = string.Empty;
+        [Key(3)] public string ColorMapSkin { get; set; } = string.Empty;
 
         /// <summary>
         /// 当前所在的子关卡id
         /// </summary>
-        [Key(4)] public int SubLevelId = -1;
+        [Key(4)] public int SubLevelId { get; set; } = -1;
 
         /// <summary>
         /// 贴图状态
         /// </summary>
-        [Key(5)] public SpriteInfo MainSprite = new();
+        [Key(5)] public SpriteInfo MainSprite { get; set; } = new();
 
         /// <summary>
         /// 皮肤发光数据
         /// </summary>
-        [Key(6)] public Dictionary<int, byte[]> GlowData = [];
+        [Key(6)] public Dictionary<int, byte[]> GlowData { get; set; } = [];
 
         /// <summary>
         /// 当前的关卡id
         /// </summary>
-        [Key(7)] public string LevelId = string.Empty;
+        [Key(7)] public string LevelId { get; set; } = string.Empty;
 
         /// <summary>
         /// 服务端分配,静态数据变化时递增
         /// </summary>
-        [Key(8)] public uint Version;
+        [Key(8)] public uint Version { get; set; }
 
 
         /// <summary>

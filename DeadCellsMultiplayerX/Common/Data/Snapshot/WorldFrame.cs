@@ -13,31 +13,31 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
         /// <summary>
         /// 世界重置代号
         /// </summary>
-        [Key(0)] public int Epoch;
+        [Key(0)] public int Epoch { get; set; }
 
         /// <summary>
         /// 广播序号,epoch 内从 0 连续
         /// </summary>
-        [Key(1)] public long Sequence;
+        [Key(1)] public long Sequence { get; set; }
 
         /// <summary>
         /// 服务端时间戳(毫秒)
         /// </summary>
-        [Key(2)] public double ServerTimeMs;
+        [Key(2)] public double ServerTimeMs { get; set; }
 
         /// <summary>
         /// 全量英雄动态状态
         /// </summary>
-        [Key(3)] public List<HeroDynamic> Heroes = [];
+        [Key(3)] public List<HeroDynamic> Heroes { get; set; } = [];
 
         /// <summary>
         /// 新增/静态变化的英雄
         /// </summary>
-        [Key(4)] public List<HeroSpawn> Spawned = [];
+        [Key(4)] public List<HeroSpawn> Spawned { get; set; } = [];
 
         /// <summary>
         /// 本帧移除的 GUID
         /// </summary>
-        [Key(5)] public List<string> Despawned = [];
+        [Key(5)] public List<string> Despawned { get; set; } = [];
     }
 }

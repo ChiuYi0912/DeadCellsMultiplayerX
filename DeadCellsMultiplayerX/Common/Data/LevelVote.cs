@@ -10,10 +10,10 @@ namespace DeadCellsMultiplayerX.Common.Data
     /// </summary>
     public class LevelVote
     {
-        public string PlyerID = string.Empty;
+        public string PlyerID { get; set; } = string.Empty;
 
-        public string NextLevelID = "PrisonStart";
+        public string NextLevelID { get; set; } = "PrisonStart";
 
-        public bool LevelSelected = false;
+        public bool LevelSelected { get; set; } = false;
     }
 }

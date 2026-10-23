@@ -26,12 +26,12 @@ namespace DeadCellsMultiplayerX.Common.Data
     public class AnimInfo
     {
         [Key(0)] public List<AnimTransitions> AnimTransitions { get; set; } = new();
-        [Key(1)] public ulong PackedA;
-        [Key(2)] public ulong PackedB;
-        [Key(3)] public ulong PackedC;
-        [Key(4)] public ulong PackedD;
-        [Key(5)] public string GroupName = string.Empty;
-        [Key(6)] public long StartTime;
+        [Key(1)] public ulong PackedA { get; set; }
+        [Key(2)] public ulong PackedB { get; set; }
+        [Key(3)] public ulong PackedC { get; set; }
+        [Key(4)] public ulong PackedD { get; set; }
+        [Key(5)] public string GroupName { get; set; } = string.Empty;
+        [Key(6)] public long StartTime { get; set; }
 
         public const ulong FrameMask = (1UL << 31) - 1;
         public const ulong PausedMask = 1UL << 31;

@@ -6,8 +6,8 @@ namespace DeadCellsMultiplayerX.Common.Data
     [MessagePackObject]
     public class PosVector
     {
-        [Key(0)] public ulong Packed;
-        [Key(1)] public ulong PackedVel;
+        [Key(0)] public ulong Packed { get; set; }
+        [Key(1)] public ulong PackedVel { get; set; }
 
         private const int CX_BITS = 16;
         private const int CY_BITS = 16;

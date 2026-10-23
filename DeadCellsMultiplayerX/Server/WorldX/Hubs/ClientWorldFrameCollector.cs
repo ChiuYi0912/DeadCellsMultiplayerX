@@ -23,17 +23,17 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
             /// <summary>
             /// 客户端 GUID
             /// </summary>
-            public string Guid = string.Empty;
+            public string Guid { get; set; } = string.Empty;
 
             /// <summary>
             /// 下一个期望的上传帧序号
             /// </summary>
-            public long NextExpected;
+            public long NextExpected { get; set; }
 
             /// <summary>
             /// 最近已交付的帧序号
             /// </summary>
-            public long LastDelivered = -1;
+            public long LastDelivered { get; set; } = -1;
 
             /// <summary>
             /// 乱序待处理帧
@@ -43,37 +43,37 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
             /// <summary>
             /// 最近已交付的完整帧
             /// </summary>
-            public ClientWorldFrame? Latest;
+            public ClientWorldFrame? Latest { get; set; }
 
             /// <summary>
             /// 上次记录的静态数据
             /// </summary>
-            public HeroSpawn? LastSpawn;
+            public HeroSpawn? LastSpawn { get; set; }
 
             /// <summary>
             /// 静态数据版本
             /// </summary>
-            public uint SpawnVersion;
+            public uint SpawnVersion { get; set; }
 
             /// <summary>
             /// 缺口开始时间毫秒
             /// </summary>
-            public long? GapSinceMs;
+            public long? GapSinceMs { get; set; }
 
             /// <summary>
             /// 上次补发请求时间毫秒
             /// </summary>
-            public long LastNackMs;
+            public long LastNackMs { get; set; }
 
             /// <summary>
             /// 当前补发请求任务
             /// </summary>
-            public Task<ClientFrameBundle>? NackTask;
+            public Task<ClientFrameBundle>? NackTask { get; set; }
 
             /// <summary>
             /// 补发请求发送委托
             /// </summary>
-            public Func<ClientFrameRangeRequest, Task<ClientFrameBundle>>? NackSender;
+            public Func<ClientFrameRangeRequest, Task<ClientFrameBundle>>? NackSender { get; set; }
         }
 
         /// <summary>

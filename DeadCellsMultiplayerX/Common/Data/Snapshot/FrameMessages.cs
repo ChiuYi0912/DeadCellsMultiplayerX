@@ -9,8 +9,8 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
     [MessagePackObject]
     public class WorldFrameRangeRequest
     {
-        [Key(0)] public long FromSequence;
-        [Key(1)] public long ToSequence;
+        [Key(0)] public long FromSequence { get; set; }
+        [Key(1)] public long ToSequence { get; set; }
     }
 
     /// <summary>
@@ -19,8 +19,8 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
     [MessagePackObject]
     public class ClientFrameRangeRequest
     {
-        [Key(0)] public long FromSequence;
-        [Key(1)] public long ToSequence;
+        [Key(0)] public long FromSequence { get; set; }
+        [Key(1)] public long ToSequence { get; set; }
     }
 
     /// <summary>
@@ -29,8 +29,8 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
     [MessagePackObject]
     public class WorldFrameBundle
     {
-        [Key(0)] public List<WorldFrame> Frames = [];
-        [Key(1)] public WorldResync? Resync;
+        [Key(0)] public List<WorldFrame> Frames { get; set; } = [];
+        [Key(1)] public WorldResync? Resync { get; set; }
     }
 
     /// <summary>
@@ -39,8 +39,8 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
     [MessagePackObject]
     public class ClientFrameBundle
     {
-        [Key(0)] public List<ClientWorldFrame> Frames = [];
-        [Key(1)] public bool Unavailable;
+        [Key(0)] public List<ClientWorldFrame> Frames { get; set; } = [];
+        [Key(1)] public bool Unavailable { get; set; }
     }
 
     /// <summary>
@@ -49,14 +49,14 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
     [MessagePackObject]
     public class WorldResync
     {
-        [Key(0)] public int Epoch;
-        
+        [Key(0)] public int Epoch { get; set; }
+
         /// <summary>
         /// 基线序号,客户端 next = Sequence + 1
         /// </summary>
-        [Key(1)] public long Sequence;
-        [Key(2)] public double ServerTimeMs;
-        [Key(3)] public List<HeroDynamic> Heroes = [];
-        [Key(4)] public List<HeroSpawn> Spawns = [];
+        [Key(1)] public long Sequence { get; set; }
+        [Key(2)] public double ServerTimeMs { get; set; }
+        [Key(3)] public List<HeroDynamic> Heroes { get; set; } = [];
+        [Key(4)] public List<HeroSpawn> Spawns { get; set; } = [];
     }
 }

@@ -12,21 +12,21 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
         /// <summary>
         /// 客户端本地时间
         /// </summary>
-        [Key(0)] public long ClientTime;
+        [Key(0)] public long ClientTime { get; set; }
 
         /// <summary>
         /// 客户端帧号
         /// </summary>
-        [Key(1)] public uint FrameId;
+        [Key(1)] public uint FrameId { get; set; }
 
         /// <summary>
         /// 静态数据
         /// </summary>
-        [Key(2)] public HeroSpawn? Spawn;
+        [Key(2)] public HeroSpawn? Spawn { get; set; }
 
         /// <summary>
         /// 动态数据
         /// </summary>
-        [Key(3)] public HeroDynamic Dynamic = null!;
+        [Key(3)] public HeroDynamic Dynamic { get; set; } = null!;
     }
 }

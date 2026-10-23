@@ -13,26 +13,26 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
         /// <summary>
         /// 回显最近观测到的服务端 epoch
         /// </summary>
-        [Key(0)] public int Epoch;
+        [Key(0)] public int Epoch { get; set; }
 
         /// <summary>
         /// 每个客户端独立,发送时分配
         /// </summary>
-        [Key(1)] public long Sequence;
+        [Key(1)] public long Sequence { get; set; }
 
         /// <summary>
         /// SyncedTimeMs
         /// </summary>
-        [Key(2)] public double ClientTimeMs;
+        [Key(2)] public double ClientTimeMs { get; set; }
 
         /// <summary>
         /// 帧id
         /// </summary>
-        [Key(3)] public long FrameId;
+        [Key(3)] public long FrameId { get; set; }
 
         /// <summary>
         /// 收到的其他客户端实体
         /// </summary>
-        [Key(4)] public List<HeroUpload> Heroes = [];
+        [Key(4)] public List<HeroUpload> Heroes { get; set; } = [];
     }
 }

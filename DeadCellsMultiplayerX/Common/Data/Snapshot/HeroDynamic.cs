@@ -23,47 +23,47 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
         /// <summary>
         /// 客户id
         /// </summary>
-        [Key(0)] public string GUID = string.Empty;
+        [Key(0)] public string GUID { get; set; } = string.Empty;
 
         /// <summary>
         /// 记录特定数据是否变化
         /// </summary>
-        [Key(1)] public uint ChangeMask;
+        [Key(1)] public uint ChangeMask { get; set; }
 
         /// <summary>
         /// 位置状态
         /// </summary>
-        [Key(2)] public PosVector Pos = new();
+        [Key(2)] public PosVector Pos { get; set; } = new();
 
         /// <summary>
         /// 动画状态
         /// </summary>
-        [Key(3)] public AnimInfo Anim = new();
+        [Key(3)] public AnimInfo Anim { get; set; } = new();
 
         /// <summary>
         /// 状态机数据
         /// </summary>
-        [Key(5)] public List<AffectEntry> Affects = [];
+        [Key(5)] public List<AffectEntry> Affects { get; set; } = [];
 
         /// <summary>
         /// 标志
         /// </summary>
-        [Key(6)] public uint Flags;
+        [Key(6)] public uint Flags { get; set; }
 
         /// <summary>
         /// 关卡id
         /// </summary>
-        [Key(7)] public string LevelId = string.Empty;
+        [Key(7)] public string LevelId { get; set; } = string.Empty;
 
         /// <summary>
         /// 子关卡id
         /// </summary>
-        [Key(8)] public int SubLevelIndex = -1;
+        [Key(8)] public int SubLevelIndex { get; set; } = -1;
 
         /// <summary>
         /// 对应 HeroSpawn.Version,用于检测静态数据缺失
         /// </summary>
-        [Key(9)] public uint SpawnVersion;
+        [Key(9)] public uint SpawnVersion { get; set; }
 
         public const uint BitAll = BitPos | BitAnim | BitAffects | BitLevel;
 
