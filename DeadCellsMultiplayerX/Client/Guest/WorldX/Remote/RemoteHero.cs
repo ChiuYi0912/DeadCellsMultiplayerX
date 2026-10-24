@@ -150,8 +150,8 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Remote
             //初始化贴图
             SpriteLib sprlib = Assets.Class.lib.get(spawn.MainSprite.AtlasName.AsHaxeString());
             dc.String group = spawn.MainSprite.GroupName.AsHaxeString();
-            dc.h3d.mat.Texture normalMapFromGroup = sprlib.getNormalMapFromGroup(group);
-            initSprite(sprlib, group, null, null, null, true, null, normalMapFromGroup);
+            dc.h3d.mat.Texture normalMap = sprlib.getNormalMapFromGroup(group);
+            initSprite(sprlib, group, null, null, null, true, null, normalMap);
 
             //设置枢轴
             spr.pivot.copyFrom(
@@ -309,8 +309,8 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Remote
             var affects = this.affects;
             if (affects == null) return false;
             if (affectId < 0 || affectId >= affects.length) return false;
-            if (!(affects.array[affectId] is ArrayObj list)) return false;
-            return list.length > 0;
+            var list = AffectCodec.ToObject<ArrayObj>(affects.array[affectId]);
+            return list != null && list.length > 0;
         }
 
         /// <summary>

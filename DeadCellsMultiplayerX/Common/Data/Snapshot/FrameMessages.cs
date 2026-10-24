@@ -58,5 +58,15 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
         [Key(2)] public double ServerTimeMs { get; set; }
         [Key(3)] public List<HeroDynamic> Heroes { get; set; } = [];
         [Key(4)] public List<HeroSpawn> Spawns { get; set; } = [];
+
+        /// <summary>
+        /// 全量怪物动态状态
+        /// </summary>
+        [Key(5)] public List<MobDynamic> Mobs { get; set; } = [];
+
+        /// <summary>
+        /// 全量怪物生成数据
+        /// </summary>
+        [Key(6)] public List<MobSpawn> MobSpawns { get; set; } = [];
     }
 }

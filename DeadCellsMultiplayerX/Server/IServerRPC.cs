@@ -1,5 +1,6 @@
 ﻿using DeadCellsMultiplayerX.Client;
 using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Common.Data.Ghosts;
 using DeadCellsMultiplayerX.Common.Data.Snapshot;
 using PolyType;
 using StreamJsonRpc;
@@ -84,5 +85,15 @@ namespace DeadCellsMultiplayerX.Server
         /// 请求全量世界基线
         /// </summary>
         public Task<WorldResync> RequestWorldResync(int knownEpoch);
+
+        /// <summary>
+        /// 客户端上报怪物状态机变化
+        /// </summary>
+        public Task SubmitMobAffects(MobAffectReport report);
+
+        /// <summary>
+        /// 客户端上报一次英雄动作（主动技能或武器）
+        /// </summary>
+        public Task SubmitHeroAction(HeroAction request);
     }
 }

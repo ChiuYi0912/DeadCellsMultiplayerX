@@ -1,10 +1,12 @@
 ﻿using dc.en;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Common.Data.Ghosts;
 using DeadCellsMultiplayerX.Common.Data.Snapshot;
 using DeadCellsMultiplayerX.Server.Connection;
 using DeadCellsMultiplayerX.Server.Events;
 using DeadCellsMultiplayerX.Server.WorldX;
+using DeadCellsMultiplayerX.Server.WorldX.Ghosts;
 using DeadCellsMultiplayerX.Server.WorldX.Hubs;
 using DeadCellsMultiplayerX.Utils;
 using Microsoft.VisualStudio.Threading;
@@ -28,18 +30,37 @@ namespace DeadCellsMultiplayerX.Server
         private ServerMainThread? mainThread;
         private readonly ServerTimeSystem timeSystem = new();
         private readonly ClientWorldFrameCollector clientFrames = new();
+        private readonly ServerMobRegistry mobRegistry = new();
+        private readonly ServerMobAffectReceiver mobAffects;
+        private readonly ServerMobPublisher mobPublisher;
         private readonly ServerWorldBroadcaster broadcaster;
+        private readonly ServerGhostManager ghosts;
 
         private readonly List<SGuestConnection> guests = [];
         public readonly Dictionary<string, LevelVote> GuestsGameInfo = [];
 
         public long CurrentTimeStamp => timeSystem.Now;
         public ClientWorldFrameCollector ClientFrames => clientFrames;
+        public ServerMobRegistry MobRegistry => mobRegistry;
+        public ServerMobAffectReceiver MobAffects => mobAffects;
+        public ServerMobPublisher MobPublisher => mobPublisher;
         public ServerWorldBroadcaster Broadcaster => broadcaster;
+        public ServerGhostManager Ghosts => ghosts;
 
         public ServerSession()
         {
-            broadcaster = new ServerWorldBroadcaster(clientFrames);
+            mobAffects = new ServerMobAffectReceiver(mobRegistry);
+            mobPublisher = new ServerMobPublisher(mobRegistry, mobAffects);
+            ghosts = new ServerGhostManager(this);
+            broadcaster = new ServerWorldBroadcaster(clientFrames, mobPublisher, ghosts);
+        }
+
+        /// <summary>
+        /// 处理客户端上报的英雄动作
+        /// </summary>
+        public void HandleHeroAction(string senderGuid, HeroAction? request)
+        {
+            ghosts.HandleAction(senderGuid, request);
         }
 
         public ServerMainThread Main => mainThread ?? throw new InvalidOperationException();
@@ -138,6 +159,24 @@ namespace DeadCellsMultiplayerX.Server
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// 按 GUID 查找客户端连接
+        /// </summary>
+        public bool TryGetGuest(string guid, out SGuestConnection guest)
+        {
+            foreach (var item in guests)
+            {
+                if (string.Equals(item.GuestInfo.Guid, guid, StringComparison.Ordinal))
+                {
+                    guest = item;
+                    return true;
+                }
+            }
+
+            guest = null!;
+            return false;
+        }
+
         public void RemoveGuest(SGuestConnection guest)
         {
             if (guest == null) return;
@@ -149,6 +188,7 @@ namespace DeadCellsMultiplayerX.Server
 
             GuestsGameInfo.Remove(guid);
             clientFrames.Unregister(guid);
+            ghosts.RemoveGuest(guid);
         }
 
         void IOnFrameUpdate.OnFrameUpdate(double dt)
@@ -168,13 +208,19 @@ namespace DeadCellsMultiplayerX.Server
 
         void IOnServerEnterNewLevel.OnServerEnterNewLevel()
         {
+            // 关卡本体已在事件前加载 怪物也已完成注册 此处不能清空寄存器
             broadcaster.BeginEpoch(CurrentTimeStamp);
+            mobAffects.BeginEpoch(broadcaster.Epoch);
+            ghosts.BeginEpoch(broadcaster.Epoch);
         }
 
         protected override void MyDispose()
         {
             broadcaster.Clear();
             clientFrames.Clear();
+            mobRegistry.BeginEpoch();
+            mobAffects.Clear();
+            ghosts.Clear();
             base.MyDispose();
         }
     }

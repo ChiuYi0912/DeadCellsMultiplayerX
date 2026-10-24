@@ -1,5 +1,14 @@
-﻿using DeadCellsMultiplayerX.Client;
+﻿using dc.en;
+using dc.en.inter;
+using dc.en.mob;
+using dc.tool;
+using DeadCellsMultiplayerX.Client;
+using DeadCellsMultiplayerX.Common.Data.Ghosts;
+using DeadCellsMultiplayerX.Common.Ghosts;
+using DeadCellsMultiplayerX.Server;
+using HaxeProxy.Runtime;
 using IngameDebugConsole;
+using ModCore.Utilities;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -83,6 +92,29 @@ namespace DeadCellsMultiplayerX
                              $"bundle={manager.BundleReceived} skipped={manager.SkippedFrames} " +
                              $"resync={manager.ResyncCount} droppedOld={manager.DroppedOld} " +
                              $"overflow={manager.PendingOverflow}");
+        }
+
+        [ConsoleMethod("mob", "")]
+        public static void TestMob(TextWriter writer)
+        {
+            dc.pr.Game game = dc.pr.Game.Class.ME;
+            var self = game.hero;
+            //Mob.Class.create("Scarecrow".AsHaxeString(), game.curLevel, self.cx, self.cy, 30, Ref<int>.In(30));
+
+            var mob = new dc.level.Mob("Scarecrow".AsHaxeString(), self.cx, self.cy, 30, 30, false);
+            game.curLevel.attachMob(mob);
+
+            InventItem testItem = new InventItem(
+                new InventItemKind.Weapon("Burner".AsHaxeString())
+            );
+            ItemDrop itemDrop = new ItemDrop(
+                self._level, self.cx, self.cy,
+                testItem, true,
+                Ref<bool>.In(false)
+            );
+            itemDrop.init();
+            itemDrop.onDropAsLoot();
+            itemDrop.dx = self.dx;
         }
 #endif
     }

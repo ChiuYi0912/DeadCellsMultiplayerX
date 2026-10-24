@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using dc.en;
-using DeadCellsMultiplayerX.Client.Guest.WorldX.Remote;
+using DeadCellsMultiplayerX.Client.Guest.Ghost;
 using DeadCellsMultiplayerX.Client.Guest.WorldX.LocalHero;
+using DeadCellsMultiplayerX.Client.Guest.WorldX.Remote;
 using DeadCellsMultiplayerX.Client.Guest.WorldX.Snapshot;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data.Snapshot;
@@ -19,14 +20,24 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
         private readonly WorldFrameManager frames;
 
         /// <summary>
-        /// 远程英雄管理器，负责维护其他玩家的英雄状态
+        /// 远程英雄管理器，负责维护其他玩家的显示实体
         /// </summary>
         private readonly RemoteHeroManager heroes;
+
+        /// <summary>
+        /// 怪物同步装置，负责服务端怪物的生成、状态同步与销毁
+        /// </summary>
+        private readonly MobSyncManager mobs;
 
         /// <summary>
         /// 本地英雄状态
         /// </summary>
         private readonly LocalHeroState localHero;
+
+        /// <summary>
+        /// 远端玩家 GhostHero 生命周期与动作重放
+        /// </summary>
+        private readonly RemoteGhostManager ghosts;
 
         /// <summary>
         /// 本地玩家的唯一标识
@@ -37,8 +48,10 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
         {
             this.localGuid = localGuid;
             frames = new WorldFrameManager(session, localGuid);
+            mobs = new MobSyncManager(session, this, frames);
             heroes = new RemoteHeroManager(session, this);
             localHero = new LocalHeroState(session, this);
+            ghosts = new RemoteGhostManager(session, this);
 
             frames.FrameApplied += OnFrameApplied;
             frames.Start();
@@ -46,10 +59,11 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
 
         public LocalHeroState LocalHero => localHero;
         public RemoteHeroManager Heros => heroes;
+        public RemoteGhostManager Ghosts => ghosts;
+        public MobSyncManager Mobs => mobs;
         public WorldFrameManager Frames => frames;
         public string LocalGuid => localGuid;
         public IEnumerable<RemoteHero> AllHeroes => heroes.All;
-
 
         public bool TryGetHero(string guid, out RemoteHero hero)
             => heroes.TryGet(guid, out hero);
@@ -61,20 +75,38 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
         public void OnWorldFrame(WorldFrame frame) => frames.OnFrame(frame);
 
         /// <summary>
-        /// 推进世界帧管理器的定时逻辑
+        /// 推进世界帧与怪物同步的定时逻辑
         /// </summary>
         /// <param name="nowMs">当前时间戳，单位为毫秒。</param>
-        public void Tick(long nowMs) => frames.Tick(nowMs);
+        public void Tick(long nowMs)
+        {
+            frames.Tick(nowMs);
+            mobs.Tick(nowMs);
+        }
 
         /// <summary>
-        /// 在世界帧应用完成后，将帧数据应用到远程英雄管理器
+        /// 判断实体是否为服务端同步的怪物
+        /// </summary>
+        public bool IsRemoteMob(Mob mob) => mobs.IsRemoteMob(mob);
+
+        public bool IsDeathSuppressed(Mob mob) => mobs.IsDeathSuppressed(mob);
+
+        /// <summary>
+        /// 在世界帧应用完成后，将帧数据应用到远程英雄与怪物
         /// </summary>
         /// <param name="frame">已应用的世界帧</param>
-        private void OnFrameApplied(WorldFrame frame) => heroes.ApplyFrame(frame, frames);
+        private void OnFrameApplied(WorldFrame frame)
+        {
+            heroes.ApplyFrame(frame, frames);
+            mobs.ApplyFrame(frame);
+            ghosts.ApplyFrame(frame);
+        }
 
         protected override void MyDispose()
         {
             frames.FrameApplied -= OnFrameApplied;
+            mobs.Clear();
+            ghosts.Dispose();
             heroes.Dispose();
             frames.Dispose();
             localHero.Dispose();

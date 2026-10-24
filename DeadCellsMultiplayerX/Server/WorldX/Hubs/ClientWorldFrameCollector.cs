@@ -307,6 +307,27 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
         /// <summary>
         /// 获取所有客户端最新的英雄动态状态
         /// </summary>
+        /// <summary>
+        /// 获取指定客户端最新的英雄状态
+        /// </summary>
+        public bool TryGetHeroState(string guid, out HeroDynamic state)
+        {
+            if (channels.TryGetValue(guid, out var channel) && channel.Latest?.Heroes != null)
+            {
+                foreach (var hero in channel.Latest.Heroes)
+                {
+                    if (hero?.Dynamic != null)
+                    {
+                        state = hero.Dynamic;
+                        return true;
+                    }
+                }
+            }
+
+            state = null!;
+            return false;
+        }
+
         public IReadOnlyCollection<HeroDynamic> GetActiveHeroDynamics()
         {
             var result = new List<HeroDynamic>();
@@ -478,6 +499,9 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
                 LevelId = source.LevelId,
                 SubLevelIndex = source.SubLevelIndex,
                 SpawnVersion = source.SpawnVersion,
+                Life = source.Life,
+                MaxLife = source.MaxLife,
+                IsDead = source.IsDead,
             };
         }
 

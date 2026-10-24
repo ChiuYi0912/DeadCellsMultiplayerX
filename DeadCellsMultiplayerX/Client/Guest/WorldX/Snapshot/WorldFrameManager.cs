@@ -330,6 +330,8 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Snapshot
                 Heroes = resync.Heroes ?? [],
                 Spawned = resync.Spawns ?? [],
                 Despawned = [],
+                Mobs = resync.Mobs ?? [],
+                SpawnedMobs = resync.MobSpawns ?? [],
             };
 
             ApplyFrame(baseline);
@@ -480,6 +482,48 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Snapshot
         /// <summary>
         /// 尝试获取英雄静态数据
         /// </summary>
+        /// <summary>
+        /// 取渲染时刻前后两个世界帧中的怪物状态
+        /// 只有一侧存在时前后都用该状态
+        /// </summary>
+        public bool TryGetMobBracket(
+            uint netId,
+            double nowSec,
+            out MobDynamic previous,
+            out MobDynamic next,
+            out double alpha,
+            out double renderTimeSec)
+        {
+            previous = null!;
+            next = null!;
+            alpha = 0;
+            renderTimeSec = nowSec - InterpolationDelaySeconds;
+
+            if (!timeline.TryGetInterpolation(nowSec, out var prevFrame, out var nextFrame, out alpha))
+                return false;
+
+            var prev = FindMob(prevFrame, netId);
+            var nextState = FindMob(nextFrame, netId);
+
+            if (prev == null && nextState == null)
+                return false;
+
+            // 关卡变化是瞬移 取较新的那一侧
+            if (prev != null && nextState != null
+                && (prev.LevelId != nextState.LevelId
+                    || prev.SubLevelIndex != nextState.SubLevelIndex))
+            {
+                previous = nextState;
+                next = nextState;
+                alpha = 0;
+                return true;
+            }
+
+            previous = prev ?? nextState!;
+            next = nextState ?? prev!;
+            return true;
+        }
+
         public bool TryGetSpawn(string guid, out HeroSpawn spawn)
             => spawns.TryGetValue(guid, out spawn!);
 
@@ -719,6 +763,18 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Snapshot
             foreach (var hero in frame.Heroes)
                 if (hero != null && hero.GUID == guid)
                     return hero;
+            return null;
+        }
+
+        /// <summary>
+        /// 在世界帧中查找怪物状态
+        /// </summary>
+        private static MobDynamic? FindMob(WorldFrame frame, uint netId)
+        {
+            if (frame?.Mobs == null) return null;
+            foreach (var mob in frame.Mobs)
+                if (mob != null && mob.NetId == netId)
+                    return mob;
             return null;
         }
     }

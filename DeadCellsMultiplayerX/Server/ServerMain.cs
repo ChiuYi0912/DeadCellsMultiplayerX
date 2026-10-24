@@ -1,5 +1,8 @@
 ﻿using dc;
 using dc.en;
+using dc.en.hero;
+using dc.en.inter;
+using dc.en.mob;
 using dc.h3d.mat;
 using dc.haxe.io;
 using dc.hxbit;
@@ -9,7 +12,9 @@ using dc.hxsl;
 using dc.libs.heaps.slib;
 using dc.pr;
 using dc.tool;
+using dc.tool.atk;
 using DeadCellsMultiplayerX.Server.Events;
+using Serilog;
 using Hashlink;
 using Hashlink.Marshaling;
 using Hashlink.Proxy;
@@ -60,7 +65,12 @@ namespace DeadCellsMultiplayerX.Server
         public readonly string savePath = System.IO.Path.GetTempFileName();
         public readonly Dictionary<object, string> spriteLib2altas = [];
 
+        private static readonly ILogger Log = Serilog.Log.ForContext("SourceContext", "ServerMain");
+
         private ServerSession? session;
+
+        internal ServerSession? Session => session;
+
         /// <summary>
         /// 初始化服务器
         /// </summary>
@@ -114,19 +124,64 @@ namespace DeadCellsMultiplayerX.Server
             Hook_Level.attachMob += Hook_Level_attachMob;
             Hook__Mob.create += Hook__Mob_create;
             Hook_Mob.onDie += Hook_Mob_OnDie;
+            Hook_Power.update += Hook_Power_update;
+            Hook__AttackUtils.applyHitResult += Hook_AttackUtils_applyHitResult;
         }
+
+        //打印命中数据
+        private void Hook_AttackUtils_applyHitResult(
+            Hook__AttackUtils.orig_applyHitResult orig,
+            AttackData atk,
+            Entity target)
+        {
+#if DEBUG
+            var gameHero = dc.pr.Game.Class.ME?.hero;
+            if (atk?.source is Hero hero
+                && !ReferenceEquals(hero, gameHero)
+                && target is Mob mob)
+            {
+                Log.Information(
+                    "Ghost attack hit: source={Source} target={Target} " +
+                    "finalDmg={FinalDmg} hit={HitResult} targetLife={Life}",
+                    hero.type, mob.GetType().Name,
+                    atk.finalDmg, atk.hitResult, mob.life);
+            }
+#endif
+            orig(atk, target);
+        }
+
+        /// <summary>
+        /// Ghost 释放的 Power 在 owner 被销毁后仍然会 update
+        /// </summary>
+        private void Hook_Power_update(Hook_Power.orig_update orig, Power self)
+        {
+            if (self == null) return;
+
+            var owner = self.owner;
+            if (owner == null || owner._level == null)
+            {
+                self.destroy();
+                return;
+            }
+
+            orig(self);
+        }
+
 
         private void Hook_Mob_OnDie(Hook_Mob.orig_onDie orig, Mob self)
         {
             orig(self);
-            EventSystem.BroadcastEvent<IOnMobOnDie,dc.en.Mob>(self);
+            session?.MobRegistry.MarkDead(self);
+            EventSystem.BroadcastEvent<IOnMobOnDie, dc.en.Mob>(self);
         }
 
         private Mob Hook__Mob_create(Hook__Mob.orig_create orig, dc.String k, Level level, int cx, int cy, int dmgTier, Ref<int> lifeTier)
         {
             var mob = orig(k, level, cx, cy, dmgTier, lifeTier);
 
-            EventSystem.BroadcastEvent<IOnCreateMob, IOnCreateMob.Data>(new(mob, k, cx, cy, dmgTier, lifeTier.value));
+            session?.MobRegistry.Register(mob, null, level);
+            int? safelifeTier = lifeTier.IsNull ? 0 : lifeTier.value;
+            EventSystem.BroadcastEvent<IOnCreateMob, IOnCreateMob.Data>(new(mob, k, cx, cy, dmgTier, safelifeTier));
             return mob;
         }
 
@@ -134,6 +189,7 @@ namespace DeadCellsMultiplayerX.Server
         {
             var mob = orig(self, m);
 
+            session?.MobRegistry.Register(mob, m, self);
             EventSystem.BroadcastEvent<IOnAttachMob, IOnAttachMob.Data>(new(m, mob));
 
             return mob;
@@ -148,6 +204,9 @@ namespace DeadCellsMultiplayerX.Server
 
         private void Hook_Entity_dispose(Hook_Entity.orig_dispose orig, Entity self)
         {
+            if (self is Mob mob)
+                session?.MobRegistry.Unregister(mob);
+
             orig(self);
 
             EventSystem.BroadcastEvent<IOnEntityDisposed, Entity>(self);

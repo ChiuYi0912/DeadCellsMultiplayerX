@@ -4,6 +4,7 @@ using dc.libs.heaps.slib;
 using DeadCellsMultiplayerX.Client;
 using DeadCellsMultiplayerX.Common;
 using DeadCellsMultiplayerX.Common.Data;
+using DeadCellsMultiplayerX.Common.Data.Ghosts;
 using DeadCellsMultiplayerX.Common.Data.Snapshot;
 using DeadCellsMultiplayerX.Common.Serializers;
 using DeadCellsMultiplayerX.Utils;
@@ -216,6 +217,18 @@ namespace DeadCellsMultiplayerX.Server.Connection
         public Task<WorldResync> RequestWorldResync(int knownEpoch)
         {
             return Task.FromResult(Session.Broadcaster.BuildResync(Session.CurrentTimeStamp));
+        }
+
+        public Task SubmitMobAffects(MobAffectReport report)
+        {
+            Session.MobAffects.OnReport(GuestInfo.Guid, report);
+            return Task.CompletedTask;
+        }
+
+        public Task SubmitHeroAction(HeroAction request)
+        {
+            Session.HandleHeroAction(GuestInfo.Guid, request);
+            return Task.CompletedTask;
         }
     }
 }

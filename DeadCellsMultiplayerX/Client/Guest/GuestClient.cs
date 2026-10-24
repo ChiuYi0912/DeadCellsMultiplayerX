@@ -27,6 +27,8 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
         public bool IsServerDrivenTransition => session != null ? session.serverDrivenTransition : false;
 
+        internal GuestClientSession? Session => session;
+
         public async Task Init(string name)
         {
 

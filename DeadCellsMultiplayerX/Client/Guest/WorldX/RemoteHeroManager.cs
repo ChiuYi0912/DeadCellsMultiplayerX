@@ -158,6 +158,8 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
         /// <param name="guid">客户id</param>
         public void Despawn(string guid)
         {
+            remoteWorld.Ghosts.Remove(guid);
+
             if (heroes.Remove(guid, out var hero))
             {
                 Logger.Information("Despawn remote hero {Guid}", guid);
@@ -205,6 +207,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
             hero.init();
             hero.ApplySpawn(spawn);
             heroes[spawn.GUID] = hero;
+            remoteWorld.Ghosts.Ensure(spawn.GUID, level);
 
             // 直接用触发创建的新关卡状态摆放,避免用旧关卡插值坐标
             hero.SnapToState(state.LevelId, state.SubLevelIndex, state.Pos);

@@ -65,6 +65,21 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
         /// </summary>
         [Key(9)] public uint SpawnVersion { get; set; }
 
+        /// <summary>
+        /// 当前生命
+        /// </summary>
+        [Key(10)] public int Life { get; set; }
+
+        /// <summary>
+        /// 最大生命
+        /// </summary>
+        [Key(11)] public int MaxLife { get; set; }
+
+        /// <summary>
+        /// 是否死亡
+        /// </summary>
+        [Key(12)] public bool IsDead { get; set; }
+
         public const uint BitAll = BitPos | BitAnim | BitAffects | BitLevel;
 
 

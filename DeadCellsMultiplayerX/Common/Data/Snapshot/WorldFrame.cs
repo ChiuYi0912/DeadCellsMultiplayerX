@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DeadCellsMultiplayerX.Common.Data.Ghosts;
 using MessagePack;
 
 namespace DeadCellsMultiplayerX.Common.Data.Snapshot
@@ -39,5 +40,25 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
         /// 本帧移除的 GUID
         /// </summary>
         [Key(5)] public List<string> Despawned { get; set; } = [];
+
+        /// <summary>
+        /// 全量怪物动态状态
+        /// </summary>
+        [Key(6)] public List<MobDynamic> Mobs { get; set; } = [];
+
+        /// <summary>
+        /// 新生成怪物的实体数据
+        /// </summary>
+        [Key(7)] public List<MobSpawn> SpawnedMobs { get; set; } = [];
+
+        /// <summary>
+        /// 本帧移除的怪物 NetId
+        /// </summary>
+        [Key(8)] public List<uint> DespawnedMobs { get; set; } = [];
+
+        /// <summary>
+        /// 本帧服务端确认的英雄动作（主动技能/武器）
+        /// </summary>
+        [Key(9)] public List<HeroActionEvent> Actions { get; set; } = [];
     }
 }

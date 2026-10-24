@@ -46,6 +46,10 @@ namespace DeadCellsMultiplayerX.Utils
 
             if (!e.initDone) return;
 
+            dyn.Life = e.life;
+            dyn.MaxLife = e.maxLife;
+            dyn.IsDead = e.destroyed || e.life <= 0;
+
             spawn.SubLevelId = e._level.GetSubLevelIndex();
             dyn.Affects = AffectCodec.Collect(
                 (Hero)e,

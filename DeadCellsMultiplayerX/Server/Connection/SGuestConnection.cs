@@ -55,7 +55,7 @@ namespace DeadCellsMultiplayerX.Server.Connection
             rpc = connection.CreateJsonRpc();
 
             rpc.AddLocalRpcTarget(this);
-            
+
 
             guest = rpc.Attach<IGuestRPC>();
 
@@ -110,8 +110,6 @@ namespace DeadCellsMultiplayerX.Server.Connection
         public Task<ClientFrameBundle> RequestClientFrames(ClientFrameRangeRequest request)
             => guest.RequestClientFrames(request);
 
-
-
         void IOnServerEnterNewLevel.OnServerEnterNewLevel()
         {
             Debug.Assert(Main.savePath != null);
@@ -125,7 +123,7 @@ namespace DeadCellsMultiplayerX.Server.Connection
 
         void IOnEntitySetColorMap.OnEntitySetColorMap(IOnEntitySetColorMap.Data data)
         {
-           
+
         }
 
         void IOnEntitySetGlowData.OnEntitySetGlowData(IOnEntitySetGlowData.Data data)

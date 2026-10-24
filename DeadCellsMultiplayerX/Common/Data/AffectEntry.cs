@@ -2,6 +2,13 @@ using MessagePack;
 
 namespace DeadCellsMultiplayerX.Common.Data
 {
+    /// <summary>
+    /// effect 层的通用身份：类型 + 实例 id + 值
+    /// UniqId 只在单个实体内有意义 不同客户端可能撞号
+    /// Val 用于区分 DifferentValue stacking 以及撞号但数值不同的层
+    /// </summary>
+    public readonly record struct AffectKey(int A, int UniqId, double Val);
+
     [MessagePackObject]
     public class AffectEntry
     {
@@ -14,5 +21,8 @@ namespace DeadCellsMultiplayerX.Common.Data
 
         [Key(6)] public double StartSec { get; set; }   // 首次出现时间
         [Key(7)] public double EndSec { get; set; }     // 结束时间 StartSec + T / baseFps
+
+        [IgnoreMember]
+        public AffectKey Key => new(A, UniqId, Val);
     }
 }

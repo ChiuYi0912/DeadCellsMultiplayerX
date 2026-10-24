@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DeadCellsMultiplayerX.Common.Data.Snapshot;
 using DeadCellsMultiplayerX.Server.Connection;
+using DeadCellsMultiplayerX.Server.WorldX.Ghosts;
 using Serilog;
 
 namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
@@ -32,6 +33,16 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
         private readonly ClientWorldFrameCollector collector;
 
         /// <summary>
+        /// 怪物状态发布器
+        /// </summary>
+        private readonly ServerMobPublisher mobPublisher;
+
+        /// <summary>
+        /// 本帧待广播的英雄动作
+        /// </summary>
+        private readonly ServerGhostManager ghosts;
+
+        /// <summary>
         /// 广播历史帧
         /// </summary>
         private readonly List<WorldFrame> history = [];
@@ -44,9 +55,14 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
         /// <summary>
         /// 创建世界帧广播器
         /// </summary>
-        public ServerWorldBroadcaster(ClientWorldFrameCollector collector)
+        public ServerWorldBroadcaster(
+            ClientWorldFrameCollector collector,
+            ServerMobPublisher mobPublisher,
+            ServerGhostManager ghosts)
         {
             this.collector = collector;
+            this.mobPublisher = mobPublisher;
+            this.ghosts = ghosts;
         }
 
         /// <summary>
@@ -139,6 +155,8 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
         /// </summary>
         public WorldResync BuildResync(long serverTimeMs)
         {
+            var mobs = mobPublisher.BuildResync(serverTimeMs);
+
             return new WorldResync
             {
                 Epoch = Epoch,
@@ -146,6 +164,8 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
                 ServerTimeMs = serverTimeMs,
                 Heroes = collector.GetActiveHeroDynamics().ToList(),
                 Spawns = collector.GetAllSpawns(),
+                Mobs = mobs.Mobs,
+                MobSpawns = mobs.Spawned,
             };
         }
 
@@ -169,6 +189,8 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
             Sequence++;
             BroadcastFrames++;
 
+            var mobs = mobPublisher.Collect(serverTimeMs);
+
             var frame = new WorldFrame
             {
                 Epoch = Epoch,
@@ -177,6 +199,10 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
                 Heroes = collector.GetActiveHeroDynamics().ToList(),
                 Spawned = collector.DrainSpawnChanges(),
                 Despawned = collector.DrainRemoved(),
+                Mobs = mobs.Mobs,
+                SpawnedMobs = mobs.Spawned,
+                DespawnedMobs = mobs.Despawned,
+                Actions = ghosts.DrainActions(),
             };
 
             if (BroadcastFrames == 1)
