@@ -110,6 +110,12 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
 
                     heroes.TryGetValue(state.GUID, out var hero);
 
+                    // 本地关卡/子关卡已切换但实体仍是旧关卡创建的 先销毁再重建
+                    if (hero != null && !IsLocalLevel(hero))
+                    {
+                        Despawn(state.GUID);
+                        hero = null;
+                    }
 
                     if (hero == null)
                     {
@@ -127,6 +133,10 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
                         hero = CreateHero(spawn, frames, state);
                         missingSpawnLogged.Remove(state.GUID);
                     }
+
+                    var currentLevel = session.Game?.curLevel;
+                    if (currentLevel != null)
+                        remoteWorld.Ghosts.Ensure(state.GUID, currentLevel);
 
                     hero.LevelId = state.LevelId;
                     hero.SubLevelIndex = state.SubLevelIndex;
@@ -175,6 +185,8 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
             foreach (var h in heroes.Values)
                 h?.destroy();
             heroes.Clear();
+
+            remoteWorld.Ghosts.Clear();
         }
 
         /// <summary>

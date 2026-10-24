@@ -45,7 +45,8 @@ namespace DeadCellsMultiplayerX.Client.Guest.Ghost
 
 
         /// <summary>
-        /// 确保实例安全
+        /// 确保指定玩家在关卡中有 GhostHero
+        /// 仅由 RemoteHeroManager 在创建 RemoteHero 时调用
         /// </summary>
         /// <param name="guid">客户id</param>
         /// <param name="level">对应关卡</param>
@@ -126,8 +127,14 @@ namespace DeadCellsMultiplayerX.Client.Guest.Ghost
                 if (evt.LevelId != levelId || evt.SubLevelIndex != subLevelIndex) continue;
                 if (evt.Slot is < 0 or > 1) continue;
 
-                var ghost = Ensure(evt.CasterGuid, level);
-                if (ghost == null) continue;
+                // GhostHero 生命周期由 RemoteHeroManager 管理 这里只重放已存在的实例
+                if (!TryGet(evt.CasterGuid, out var ghost)) continue;
+
+                if (!ghost.MatchesLevel(level))
+                {
+                    Remove(evt.CasterGuid);
+                    continue;
+                }
 
                 ghost.SetTransform(
                     evt.CX, evt.CY, evt.XR, evt.YR, evt.Dir, evt.DX, evt.DY);

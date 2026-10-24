@@ -128,10 +128,14 @@ namespace DeadCellsMultiplayerX.Common.Ghosts
             SubLevelIndex = Hero._level?.GetSubLevelIndex() ?? -1;
         }
 
+        /// <summary>
+        /// 判断 GhostHero 是否仍在指定关卡和子关卡
+        /// </summary>
         public bool MatchesLevel(Level level)
         {
             if (level == null) return false;
-            return ReferenceEquals(Hero._level, level);
+            if (!ReferenceEquals(Hero._level, level)) return false;
+            return SubLevelIndex == level.GetSubLevelIndex();
         }
 
         public void SetTransform(

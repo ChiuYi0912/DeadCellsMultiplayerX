@@ -133,16 +133,20 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Ghosts
                 return null;
 
             var game = Game.Class.ME;
-            var level = game?.curLevel;
-            if (game == null || level == null) return null;
-
-            string levelId = level.map?.id?.ToString() ?? string.Empty;
-            int subLevelIndex = level.GetSubLevelIndex();
+            if (game == null) return null;
 
             if (!session.ClientFrames.TryGetHeroState(senderGuid, out var state))
                 return null;
             if (state.IsDead || state.Life <= 0) return null;
-            if (state.LevelId != levelId || state.SubLevelIndex != subLevelIndex)
+
+            // 客户端进入子关卡后 服务端 curLevel 仍可能停在主关卡
+            string levelId = state.LevelId;
+            int subLevelIndex = state.SubLevelIndex;
+
+            var level = ResolveLevel(game, levelId, subLevelIndex);
+
+            // 请求必须与发送者当前关卡一致 防止跨关卡执行
+            if (request.LevelId != levelId || request.SubLevelIndex != subLevelIndex)
                 return null;
 
             double dx = state.Pos.CX + state.Pos.XR - (request.CX + request.XR);
@@ -167,7 +171,7 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Ghosts
                 && now - last < interval)
                 return null;
 
-            var ghost = EnsureGhost(senderGuid, game, level);
+            var ghost = EnsureGhost(senderGuid, game, level!);
             if (ghost == null) return null;
 
             lastActionIds[senderGuid] = request.ActionId;
@@ -294,6 +298,32 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Ghosts
                 SubLevelIndex = action.SubLevelIndex,
                 ServerTimeMs = action.ServerTimeMs,
             };
+        }
+
+        /// <summary>
+        /// 按关卡 id 和子关卡索引查找服务端 Level
+        /// </summary>
+        private static Level? ResolveLevel(Game game, string levelId, int subLevelIndex)
+        {
+            var subLevels = game.subLevels;
+            if (subLevels != null)
+            {
+                for (int i = 0; i < subLevels.length; i++)
+                {
+                    if (subLevels.getDyn(i) is not Level level) continue;
+                    if ((level.map?.id?.ToString() ?? string.Empty) != levelId) continue;
+                    if (level.GetSubLevelIndex() != subLevelIndex) continue;
+                    return level;
+                }
+            }
+
+            var current = game.curLevel;
+            if (current != null
+                && (current.map?.id?.ToString() ?? string.Empty) == levelId
+                && current.GetSubLevelIndex() == subLevelIndex)
+                return current;
+
+            return null;
         }
 
         private GhostHero? EnsureGhost(string guid, Game game, Level level)
