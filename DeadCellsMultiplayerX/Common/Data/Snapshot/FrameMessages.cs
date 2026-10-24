@@ -68,5 +68,10 @@ namespace DeadCellsMultiplayerX.Common.Data.Snapshot
         /// 全量怪物生成数据
         /// </summary>
         [Key(6)] public List<MobSpawn> MobSpawns { get; set; } = [];
+
+        /// <summary>
+        /// 全量动态关卡区域
+        /// </summary>
+        [Key(7)] public List<LevelAreaAffectState> AreaAffects { get; set; } = [];
     }
 }

@@ -43,6 +43,11 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
         private readonly ServerGhostManager ghosts;
 
         /// <summary>
+        /// 服务端动态关卡区域
+        /// </summary>
+        private readonly ServerLevelAreaAffectRegistry areaAffects;
+
+        /// <summary>
         /// 广播历史帧
         /// </summary>
         private readonly List<WorldFrame> history = [];
@@ -58,11 +63,13 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
         public ServerWorldBroadcaster(
             ClientWorldFrameCollector collector,
             ServerMobPublisher mobPublisher,
-            ServerGhostManager ghosts)
+            ServerGhostManager ghosts,
+            ServerLevelAreaAffectRegistry areaAffects)
         {
             this.collector = collector;
             this.mobPublisher = mobPublisher;
             this.ghosts = ghosts;
+            this.areaAffects = areaAffects;
         }
 
         /// <summary>
@@ -166,6 +173,7 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
                 Spawns = collector.GetAllSpawns(),
                 Mobs = mobs.Mobs,
                 MobSpawns = mobs.Spawned,
+                AreaAffects = areaAffects.Collect(serverTimeMs),
             };
         }
 
@@ -203,6 +211,7 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
                 SpawnedMobs = mobs.Spawned,
                 DespawnedMobs = mobs.Despawned,
                 Actions = ghosts.DrainActions(),
+                AreaAffects = areaAffects.Collect(serverTimeMs),
             };
 
             if (BroadcastFrames == 1)

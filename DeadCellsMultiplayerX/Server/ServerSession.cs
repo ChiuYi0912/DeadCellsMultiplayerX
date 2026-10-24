@@ -31,6 +31,7 @@ namespace DeadCellsMultiplayerX.Server
         private readonly ServerTimeSystem timeSystem = new();
         private readonly ClientWorldFrameCollector clientFrames = new();
         private readonly ServerMobRegistry mobRegistry = new();
+        private readonly ServerLevelAreaAffectRegistry areaAffects = new();
         private readonly ServerMobPublisher mobPublisher;
         private readonly ServerWorldBroadcaster broadcaster;
         private readonly ServerGhostManager ghosts;
@@ -41,6 +42,7 @@ namespace DeadCellsMultiplayerX.Server
         public long CurrentTimeStamp => timeSystem.Now;
         public ClientWorldFrameCollector ClientFrames => clientFrames;
         public ServerMobRegistry MobRegistry => mobRegistry;
+        public ServerLevelAreaAffectRegistry AreaAffects => areaAffects;
         public ServerMobPublisher MobPublisher => mobPublisher;
         public ServerWorldBroadcaster Broadcaster => broadcaster;
         public ServerGhostManager Ghosts => ghosts;
@@ -49,7 +51,8 @@ namespace DeadCellsMultiplayerX.Server
         {
             mobPublisher = new ServerMobPublisher(mobRegistry);
             ghosts = new ServerGhostManager(this);
-            broadcaster = new ServerWorldBroadcaster(clientFrames, mobPublisher, ghosts);
+            broadcaster = new ServerWorldBroadcaster(
+                clientFrames, mobPublisher, ghosts, areaAffects);
         }
 
         /// <summary>
@@ -206,6 +209,7 @@ namespace DeadCellsMultiplayerX.Server
         void IOnServerEnterNewLevel.OnServerEnterNewLevel()
         {
             // 关卡本体已在事件前加载 怪物也已完成注册 此处不能清空寄存器
+            areaAffects.Clear();
             broadcaster.BeginEpoch(CurrentTimeStamp);
             ghosts.BeginEpoch(broadcaster.Epoch);
         }
@@ -215,6 +219,7 @@ namespace DeadCellsMultiplayerX.Server
             broadcaster.Clear();
             clientFrames.Clear();
             mobRegistry.BeginEpoch();
+            areaAffects.Clear();
             ghosts.Clear();
             base.MyDispose();
         }

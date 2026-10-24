@@ -40,6 +40,11 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
         private readonly RemoteGhostManager ghosts;
 
         /// <summary>
+        /// 服务端权威的动态关卡区域镜像
+        /// </summary>
+        private readonly LevelAreaAffectStateManager areaAffects;
+
+        /// <summary>
         /// 本地玩家的唯一标识
         /// </summary>
         private readonly string localGuid;
@@ -52,6 +57,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
             heroes = new RemoteHeroManager(session, this);
             localHero = new LocalHeroState(session, this);
             ghosts = new RemoteGhostManager(session, this);
+            areaAffects = new LevelAreaAffectStateManager(session);
 
             frames.FrameApplied += OnFrameApplied;
             frames.Start();
@@ -61,6 +67,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
         public RemoteHeroManager Heros => heroes;
         public RemoteGhostManager Ghosts => ghosts;
         public MobSyncManager Mobs => mobs;
+        public LevelAreaAffectStateManager AreaAffects => areaAffects;
         public WorldFrameManager Frames => frames;
         public string LocalGuid => localGuid;
         public IEnumerable<RemoteHero> AllHeroes => heroes.All;
@@ -98,6 +105,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
         private void OnFrameApplied(WorldFrame frame)
         {
             heroes.ApplyFrame(frame, frames);
+            areaAffects.ApplyFrame(frame);
             mobs.ApplyFrame(frame);
             ghosts.ApplyFrame(frame);
         }
@@ -106,6 +114,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX
         {
             frames.FrameApplied -= OnFrameApplied;
             mobs.Clear();
+            areaAffects.Reset();
             ghosts.Dispose();
             heroes.Dispose();
             frames.Dispose();

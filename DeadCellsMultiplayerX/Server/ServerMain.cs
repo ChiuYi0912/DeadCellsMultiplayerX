@@ -126,6 +126,7 @@ namespace DeadCellsMultiplayerX.Server
             Hook_Mob.onDie += Hook_Mob_OnDie;
             Hook_Power.update += Hook_Power_update;
             Hook__AttackUtils.applyHitResult += Hook_AttackUtils_applyHitResult;
+            Hook_LevelAreaAffect.init += Hook_LevelAreaAffect_init;
         }
 
         //打印命中数据
@@ -148,6 +149,24 @@ namespace DeadCellsMultiplayerX.Server
             }
 #endif
             orig(atk, target);
+        }
+
+        /// <summary>
+        /// 登记服务端运行时创建的动态关卡区域
+        /// </summary>
+        private void Hook_LevelAreaAffect_init(
+            Hook_LevelAreaAffect.orig_init orig,
+            LevelAreaAffect self,
+            int x,
+            int y,
+            double durationS,
+            int a,
+            double aDurationS,
+            double aValue,
+            dc.hl.types.ArrayObj affixes)
+        {
+            orig(self, x, y, durationS, a, aDurationS, aValue, affixes);
+            session?.AreaAffects.Register(self);
         }
 
         /// <summary>

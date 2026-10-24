@@ -332,6 +332,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Snapshot
                 Despawned = [],
                 Mobs = resync.Mobs ?? [],
                 SpawnedMobs = resync.MobSpawns ?? [],
+                AreaAffects = resync.AreaAffects ?? [],
             };
 
             ApplyFrame(baseline);

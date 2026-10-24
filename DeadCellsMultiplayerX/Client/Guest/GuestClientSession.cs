@@ -152,8 +152,50 @@ namespace DeadCellsMultiplayerX.Client.Guest
             Hook_Power.update += Hook_Power_update;
             Hook__AttackUtils.applyHitResult += Hook_AttackUtils_applyHitResult;
             Hook__AttackUtils.postHitResultUpdate += Hook_AttackUtils_postHitResultUpdate;
+            Hook_LevelAreaAffect.init += Hook_LevelAreaAffect_init;
+            Hook_LevelAreaAffect.applyAnotherAffect += Hook_LevelAreaAffect_applyAnotherAffect;
             localCapture = new LocalGhostCapture(this);
             localCapture.Init();
+        }
+
+        /// <summary>
+        /// 只允许服务端快照应用 LevelAreaAffect
+        /// </summary>
+        private void Hook_LevelAreaAffect_init(
+            Hook_LevelAreaAffect.orig_init orig,
+            dc.tool.LevelAreaAffect self,
+            int x,
+            int y,
+            double durationS,
+            int a,
+            double aDurationS,
+            double aValue,
+            dc.hl.types.ArrayObj affixes)
+        {
+            var manager = remoteWorld?.AreaAffects;
+            if (manager == null || !manager.IsApplyingServer)
+                return;
+
+            orig(self, x, y, durationS, a, aDurationS, aValue, affixes);
+        }
+
+        /// <summary>
+        /// 只允许服务端快照应用
+        /// </summary>
+        private void Hook_LevelAreaAffect_applyAnotherAffect(
+            Hook_LevelAreaAffect.orig_applyAnotherAffect orig,
+            dc.tool.LevelAreaAffect self,
+            double a,
+            int aDurationS,
+            double aValue,
+            double affixes,
+            dc.hl.types.ArrayObj prev)
+        {
+            var manager = remoteWorld?.AreaAffects;
+            if (manager == null || !manager.IsApplyingServer)
+                return;
+
+            orig(self, a, aDurationS, aValue, affixes, prev);
         }
 
         private void Hook_Power_update(Hook_Power.orig_update orig, Power self)
@@ -338,6 +380,8 @@ namespace DeadCellsMultiplayerX.Client.Guest
             Hook_Power.update -= Hook_Power_update;
             Hook__AttackUtils.applyHitResult -= Hook_AttackUtils_applyHitResult;
             Hook__AttackUtils.postHitResultUpdate -= Hook_AttackUtils_postHitResultUpdate;
+            Hook_LevelAreaAffect.init -= Hook_LevelAreaAffect_init;
+            Hook_LevelAreaAffect.applyAnotherAffect -= Hook_LevelAreaAffect_applyAnotherAffect;
             localCapture?.Dispose();
             localCapture = null;
 
