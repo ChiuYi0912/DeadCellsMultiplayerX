@@ -219,12 +219,6 @@ namespace DeadCellsMultiplayerX.Server.Connection
             return Task.FromResult(Session.Broadcaster.BuildResync(Session.CurrentTimeStamp));
         }
 
-        public Task SubmitMobAffects(MobAffectReport report)
-        {
-            Session.MobAffects.OnReport(GuestInfo.Guid, report);
-            return Task.CompletedTask;
-        }
-
         public Task SubmitHeroAction(HeroAction request)
         {
             Session.HandleHeroAction(GuestInfo.Guid, request);

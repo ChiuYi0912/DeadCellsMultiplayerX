@@ -19,8 +19,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Remote
         private readonly GuestClientSession session;
         private readonly WorldFrameManager frames;
         private readonly ClientMobReceiver receiver;
-        private readonly MobAffectManager affectManager;
-        private readonly MobAffectReceiver affectReceiver;
+        private readonly MobAffectStateManager affectState;
 
         /// <summary>
         /// 记录mobid
@@ -38,16 +37,10 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Remote
             this.session = session;
             this.frames = frames;
             receiver = new ClientMobReceiver(session, remoteWorld);
-            affectManager = new MobAffectManager(session, receiver, frames);
-            affectReceiver = new MobAffectReceiver();
+            affectState = new MobAffectStateManager();
         }
 
         public ClientMobReceiver Receiver => receiver;
-
-        /// <summary>
-        /// 怪物状态机管理器
-        /// </summary>
-        public MobAffectManager Affects => affectManager;
 
         public bool IsRemoteMob(Mob mob) => receiver.IsRemoteMob(mob);
 
@@ -65,7 +58,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Remote
             {
                 lastEpoch = frame.Epoch;
                 receiver.Clear();
-                affectManager.Reset();
+                affectState.Reset();
             }
 
             receiver.RetryPending();
@@ -79,7 +72,10 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Remote
             if (frame.DespawnedMobs != null)
             {
                 foreach (var netId in frame.DespawnedMobs)
+                {
                     receiver.Remove(netId);
+                    affectState.Remove(netId);
+                }
             }
 
             // 以服务端当前帧的集合为准清理本地多余怪物
@@ -103,7 +99,10 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Remote
                 if (mob == null || mob.destroyed) continue;
                 if (!receiver.TryGetNetId(mob, out var netId)) continue;
                 if (!frameNetIds.Contains(netId))
+                {
                     receiver.Remove(netId);
+                    affectState.Remove(netId);
+                }
             }
 
             if (!loggedFirstMob && frame.Mobs != null && frame.Mobs.Count > 0)
@@ -135,25 +134,28 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Remote
                         out var prev, out var next,
                         out double alpha, out double renderTimeSec))
                 {
+                    affectState.ExpireIfDue(netId, mob, nowSec);
                     continue;
                 }
 
                 RemoteHeroMotion.Apply(mob, prev.Pos, next.Pos, alpha);
                 RemoteMobAnimator.Apply(mob, prev.Anim, next.Anim, renderTimeSec);
-                affectReceiver.Apply(mob, prev.Affects, renderTimeSec);
+
+                // next 是更新的权威快照 空列表也代表服务端已清空
+                // affect 使用同步时间校准 不能用落后的动画插值时间
+                affectState.ApplySnapshot(
+                    netId, mob, next.Affects ?? prev.Affects, nowSec);
 
                 int life = (int)Math.Round(prev.Life + (next.Life - prev.Life) * alpha);
                 mob.life = life;
                 mob.maxLife = next.MaxLife;
             }
-
-            affectManager.Tick(nowMs);
         }
 
         public void Clear()
         {
             receiver.Clear();
-            affectManager.Reset();
+            affectState.Reset();
         }
     }
 }

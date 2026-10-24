@@ -22,6 +22,8 @@ namespace DeadCellsMultiplayerX.Common.Serializers
             var affects = hero.affects;
             if (affects == null) return result;
 
+            double fps = baseFps > 0.0 && double.IsFinite(baseFps) ? baseFps : 60.0;
+
             if (!startCache.TryGetValue(hero, out var t0map))
             {
                 t0map = new Dictionary<AffectKey, double>();
@@ -52,6 +54,8 @@ namespace DeadCellsMultiplayerX.Common.Serializers
                         t0map[key] = t0;
                     }
 
+                    double remainingSec = v.t / fps;
+
                     result.Add(new AffectEntry
                     {
                         OuterIndex = i,
@@ -61,7 +65,9 @@ namespace DeadCellsMultiplayerX.Common.Serializers
                         UniqId = v.uniqId,
                         Val = v.val,
                         StartSec = t0,
-                        EndSec = t0 + v.t / baseFps,
+                        EndSec = snapSec + remainingSec,
+                        RemainingSec = remainingSec,
+                        ServerTimeSec = snapSec,
                     });
                 }
             }
@@ -122,12 +128,19 @@ namespace DeadCellsMultiplayerX.Common.Serializers
             return null;
         }
 
-        public static void Apply(Entity hero, List<AffectEntry> entries, double renderSec)
+        public static void Apply(
+            Entity hero,
+            List<AffectEntry> entries,
+            double nowSec,
+            double baseFps = 60.0)
         {
             if (entries == null || entries.Count == 0) return;
+            if (!double.IsFinite(nowSec)) return;
 
             var affects = hero.affects;
             if (affects == null) return;
+
+            double fps = baseFps > 0.0 && double.IsFinite(baseFps) ? baseFps : 60.0;
 
             // 注入条目的 uniqId 也要占用本地序列 否则后续 setAffectS 会撞号
             int nextUniqId = hero.lastUniqId;
@@ -140,8 +153,25 @@ namespace DeadCellsMultiplayerX.Common.Serializers
                 if (e.UniqId >= nextUniqId)
                     nextUniqId = e.UniqId == int.MaxValue ? int.MaxValue : e.UniqId + 1;
 
-                if (renderSec < e.StartSec || renderSec >= e.EndSec)
+                if (nowSec < e.StartSec)
                     continue;
+
+                // 用服务端采集时的剩余秒数 + 快照年龄计算当前剩余
+                // 不能直接写 e.T 否则每帧/每次重放都会把计时器拉回采集时的值
+                double remainingSec;
+                if (e.ServerTimeSec > 0.0)
+                {
+                    double age = nowSec - e.ServerTimeSec;
+                    if (age < 0.0) age = 0.0;
+                    remainingSec = e.RemainingSec - age;
+                }
+                else
+                {
+                    remainingSec = e.EndSec - nowSec;
+                }
+
+                if (remainingSec <= 0.0) continue;
+                double remainingFrames = remainingSec * fps;
 
                 while (affects.length <= e.OuterIndex)
                     affects.push((ArrayObj)ArrayUtils.CreateDyn().array);
@@ -160,7 +190,7 @@ namespace DeadCellsMultiplayerX.Common.Serializers
                 var value = new virtual_a_t_uniqId_val_
                 {
                     a = e.A,
-                    t = e.T,
+                    t = remainingFrames,
                     uniqId = e.UniqId,
                     val = e.Val
                 };
@@ -175,6 +205,94 @@ namespace DeadCellsMultiplayerX.Common.Serializers
 
             if (nextUniqId > hero.lastUniqId)
                 hero.lastUniqId = nextUniqId;
+        }
+
+        /// <summary>
+        /// 清空指定 outer index 的 affect 列表
+        /// </summary>
+        public static void ClearIndex(Entity entity, int outerIndex)
+        {
+            var affects = entity?.affects;
+            if (affects == null) return;
+            if (outerIndex < 0 || outerIndex >= affects.length) return;
+
+            affects.array[outerIndex] = (ArrayObj)ArrayUtils.CreateDyn().array;
+        }
+
+        /// <summary>
+        /// 移除指定 effect 类型的本地条目 服务端快照已经包含这些类型
+        /// </summary>
+        /// <param name="excludeIndexes">服务端快照接管的索引 不参与清理</param>
+        public static void RemoveByAffectTypes(
+            Entity entity,
+            HashSet<int> types,
+            HashSet<int>? excludeIndexes = null)
+        {
+            var affects = entity?.affects;
+            if (affects == null || types == null || types.Count == 0) return;
+
+            for (int i = 0; i < affects.length; i++)
+            {
+                if (excludeIndexes != null && excludeIndexes.Contains(i)) continue;
+
+                var inner = ToObject<ArrayObj>(affects.array[i]);
+                if (inner == null || inner.length == 0) continue;
+
+                var rebuilt = (ArrayObj)ArrayUtils.CreateDyn().array;
+                bool changed = false;
+
+                for (int j = 0; j < inner.length; j++)
+                {
+                    var v = ToVirtual<virtual_a_t_uniqId_val_>(inner.array[j]);
+                    if (v == null)
+                    {
+                        changed = true;
+                        continue;
+                    }
+
+                    if (types.Contains(v.a))
+                    {
+                        changed = true;
+                        continue;
+                    }
+
+                    rebuilt.push(v);
+                }
+
+                if (changed)
+                    affects.array[i] = rebuilt;
+            }
+        }
+
+        /// <summary>
+        /// 读取本地指定 affect 的剩余秒数 不存在返回 0
+        /// </summary>
+        public static double GetRemainingSec(
+            Entity entity, AffectEntry entry, double baseFps)
+        {
+            var affects = entity?.affects;
+            if (affects == null) return 0.0;
+
+            int outerIndex = entry.OuterIndex;
+            if (outerIndex < 0 || outerIndex >= affects.length) return 0.0;
+
+            var inner = ToObject<ArrayObj>(affects.array[outerIndex]);
+            if (inner == null) return 0.0;
+
+            double fps = baseFps > 0.0 && double.IsFinite(baseFps) ? baseFps : 60.0;
+
+            for (int j = 0; j < inner.length; j++)
+            {
+                var v = ToVirtual<virtual_a_t_uniqId_val_>(inner.array[j]);
+                if (v == null) continue;
+
+                if (v.a == entry.A
+                    && v.uniqId == entry.UniqId
+                    && v.val == entry.Val)
+                    return v.t / fps;
+            }
+
+            return 0.0;
         }
 
         /// <summary>

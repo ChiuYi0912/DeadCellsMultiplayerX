@@ -39,14 +39,10 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
         private static readonly ILogger Logger = Log.ForContext("SourceContext", "ServerMobPublisher");
 
         private readonly ServerMobRegistry registry;
-        private readonly ServerMobAffectReceiver mobAffects;
 
-        public ServerMobPublisher(
-            ServerMobRegistry registry,
-            ServerMobAffectReceiver mobAffects)
+        public ServerMobPublisher(ServerMobRegistry registry)
         {
             this.registry = registry;
-            this.mobAffects = mobAffects;
         }
 
         /// <summary>
@@ -90,14 +86,11 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
                     entry.SpawnBroadcast = true;
                 }
 
-                mobAffects.ApplyTo(entry, serverTimeMs);
                 result.Mobs.Add(BuildDynamic(entry, serverTimeMs));
             }
 
             var removed = registry.DrainRemoved();
             result.Despawned.AddRange(removed);
-            foreach (uint netId in removed)
-                mobAffects.Remove(netId);
 
             return result;
         }
@@ -114,9 +107,29 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
                 if (!entry.SpawnSerialized) continue;
                 if (entry.Mob == null || entry.Mob.destroyed) continue;
 
-                mobAffects.ApplyTo(entry, serverTimeMs);
                 result.Spawned.Add(entry.Spawn);
                 result.Mobs.Add(BuildDynamic(entry, serverTimeMs));
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// 采集服务端原生 affect 并按身份去重
+        /// </summary>
+        private static List<AffectEntry> CollectAffects(
+            dc.en.Mob mob, double serverSec, double baseFps)
+        {
+            var collected = AffectCodec.Collect(mob, serverSec, baseFps);
+            if (collected.Count < 2) return collected;
+
+            HashSet<AffectKey> seen = [];
+            List<AffectEntry> result = new(collected.Count);
+
+            foreach (var entry in collected)
+            {
+                if (entry == null) continue;
+                if (seen.Add(entry.Key)) result.Add(entry);
             }
 
             return result;
@@ -130,9 +143,9 @@ namespace DeadCellsMultiplayerX.Server.WorldX.Hubs
             var mob = entry.Mob;
             double serverSec = serverTimeMs / 1000.0;
 
-            // 服务端原生效果与客户端上报的权威状态按 (A, UniqId) 合并
-            var serverEntries = AffectCodec.Collect(mob, serverSec, mob.cd?.baseFps ?? 60.0);
-            var affects = mobAffects.MergeActive(entry.NetId, serverSec, serverEntries);
+            // 服务端 mob 的 affects 是唯一权威快照
+            var affects = CollectAffects(
+                mob, serverSec, mob.cd?.baseFps ?? 60.0);
 
             var dyn = new MobDynamic
             {

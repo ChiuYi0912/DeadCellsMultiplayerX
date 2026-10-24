@@ -216,7 +216,7 @@ namespace DeadCellsMultiplayerX.Client.Guest.WorldX.Remote
                 RemoteHeroMotion.Apply(this, prev.Pos, next.Pos, alpha);
 
                 //同步状态机数组
-                AffectCodec.Apply(this, prev.Affects, renderTimeSec);
+                AffectCodec.Apply(this, prev.Affects, nowSec, cd?.baseFps ?? 60.0);
 
                 Animate(prev.Anim, next.Anim, renderTimeSec);
             }

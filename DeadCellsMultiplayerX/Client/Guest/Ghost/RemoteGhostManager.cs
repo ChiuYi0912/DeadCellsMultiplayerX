@@ -67,9 +67,6 @@ namespace DeadCellsMultiplayerX.Client.Guest.Ghost
             if (ghost == null) return null;
 
             ghosts[guid] = ghost;
-
-            // 标记重放来源 客户端伤害拦截据此识别 Ghost 命中
-            GhostReplayGuard.Mark(ghost.Hero);
             return ghost;
         }
 
@@ -141,8 +138,6 @@ namespace DeadCellsMultiplayerX.Client.Guest.Ghost
                 ghost.SetTiers(
                     evt.BrutalityTier, evt.SurvivalTier, evt.TacticTier);
 
-                int entityCount = level.entities?.length ?? 0;
-
                 switch (evt.Kind)
                 {
                     case HeroActionKind.ActiveSkill:
@@ -153,7 +148,6 @@ namespace DeadCellsMultiplayerX.Client.Guest.Ghost
                                 "Skill replay failed: caster={Caster} slot={Slot} item={Item}",
                                 evt.CasterGuid, evt.Slot, evt.Item?.ItemId);
                         }
-                        GhostReplayGuard.MarkNewEntities(level, entityCount);
                         break;
 
                     case HeroActionKind.Weapon:
@@ -164,7 +158,6 @@ namespace DeadCellsMultiplayerX.Client.Guest.Ghost
                                 "Weapon replay failed: caster={Caster} slot={Slot} item={Item}",
                                 evt.CasterGuid, evt.Slot, evt.Item?.ItemId);
                         }
-                        GhostReplayGuard.MarkNewEntities(level, entityCount);
                         break;
                 }
             }

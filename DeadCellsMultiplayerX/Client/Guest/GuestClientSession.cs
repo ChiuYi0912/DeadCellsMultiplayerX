@@ -60,7 +60,7 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
         public dc.pr.Game Game => dc.pr.Game.Class.ME;
         public GuestClient Client { get; private set; } = null!;
-        
+
         internal RemoteWorld? RemoteWorld => remoteWorld;
         private RemoteWorld? remoteWorld;
         private LocalGhostCapture? localCapture;
@@ -146,7 +146,6 @@ namespace DeadCellsMultiplayerX.Client.Guest
             }
 
             Hook_Game.onDispose += Hook_Game_onDispose;
-            Hook_Mob.fixedUpdate += Hook_Mob_fixedUpdate;
             Hook_Mob.aiLocked += Hook_Mob_aiLocked;
             Hook_Mob.onDie += Hook_Mob_onDie;
             Hook_Game.init += Hook_Game_init;
@@ -181,15 +180,16 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
 
         /// <summary>
-        /// 客户端 Ghost 重放的命中只触发表现
+        /// 客户端对 puppet 的命中只触发表现
         /// 跳过 attackTarget.applyHit 与 onHit 回调 避免本地扣血/死亡/affect
+        /// 服务端快照是 mob 状态唯一权威
         /// </summary>
         private void Hook_AttackUtils_applyHitResult(
             Hook__AttackUtils.orig_applyHitResult orig,
             AttackData atk,
             Entity target)
         {
-            if (!IsReplayHit(atk, target))
+            if (target is not Mob mob || remoteWorld?.IsRemoteMob(mob) != true)
             {
                 orig(atk, target);
                 return;
@@ -197,14 +197,12 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
             if (replayVisualDepth == 0
                 && atk != null
-                && atk.isSuccess()
-                && target is Mob mob)
+                && atk.isSuccess())
             {
-                remoteWorld?.Mobs.Affects.SuppressReplay(mob);
                 GhostReplayGuard.MarkVisualHit(mob);
 
                 Logger.Verbose(
-                    "Replay hit visual: target={Target} dmg={Dmg} hit={Hit}",
+                    "Puppet hit visual: target={Target} dmg={Dmg} hit={Hit}",
                     mob.type, atk.finalDmg, atk.hitResult);
 
                 replayVisualDepth++;
@@ -217,7 +215,7 @@ namespace DeadCellsMultiplayerX.Client.Guest
                 {
                     // 表现失败不能中断世界帧应用
                     Logger.Warning(ex,
-                        "Replay onDamage failed: target={Target}", mob.type);
+                        "Puppet onDamage failed: target={Target}", mob.type);
                 }
                 finally
                 {
@@ -226,41 +224,15 @@ namespace DeadCellsMultiplayerX.Client.Guest
             }
         }
 
-        /// <summary>
-        /// 进攻性 affect/状态在 postHitResultUpdate 施加 重放命中全部跳过
-        /// </summary>
         private void Hook_AttackUtils_postHitResultUpdate(
             Hook__AttackUtils.orig_postHitResultUpdate orig,
             AttackData atk,
             Entity target)
         {
-            if (IsReplayHit(atk, target)) return;
+            if (target is Mob mob && remoteWorld?.IsRemoteMob(mob) == true)
+                return;
 
             orig(atk, target);
-        }
-
-        /// <summary>
-        /// 命中是否来自远端 Ghost 重放 且目标是服务端同步的 puppet
-        /// </summary>
-        private bool IsReplayHit(AttackData? atk, Entity? target)
-        {
-            if (atk == null || target is not Mob mob) return false;
-            if (remoteWorld?.IsRemoteMob(mob) != true) return false;
-
-            var localHero = Game?.hero;
-            if (localHero == null) return false;
-
-            if (atk.source is Hero hero && !ReferenceEquals(hero, localHero))
-                return true;
-
-            if (GhostReplayGuard.IsMarked(atk.source)) return true;
-            if (GhostReplayGuard.IsMarked(atk.carrier)) return true;
-
-            if (atk.sourceWeapon?.owner is Hero weaponOwner
-                && !ReferenceEquals(weaponOwner, localHero))
-                return true;
-
-            return false;
         }
 
 
@@ -269,13 +241,6 @@ namespace DeadCellsMultiplayerX.Client.Guest
 
         internal void DebugUseWeapon(string itemId, int slot, int cycle = 0)
             => localCapture?.DebugUseWeapon(itemId, slot, cycle);
-
-        private void Hook_Mob_fixedUpdate(Hook_Mob.orig_fixedUpdate orig, Mob self)
-        {
-            orig(self);
-            //同步状态机
-            remoteWorld?.Mobs.Affects.OnMobFixedUpdate(self);
-        }
 
         private void Hook_Game_init(Hook_Game.orig_init orig, dc.pr.Game self)
         {
@@ -369,7 +334,6 @@ namespace DeadCellsMultiplayerX.Client.Guest
             replicator?.Dispose();
             rpc?.Dispose();
 
-            Hook_Mob.fixedUpdate -= Hook_Mob_fixedUpdate;
             Hook_Mob.onDie -= Hook_Mob_onDie;
             Hook_Power.update -= Hook_Power_update;
             Hook__AttackUtils.applyHitResult -= Hook_AttackUtils_applyHitResult;

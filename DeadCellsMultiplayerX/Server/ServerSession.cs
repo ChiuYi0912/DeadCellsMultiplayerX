@@ -31,7 +31,6 @@ namespace DeadCellsMultiplayerX.Server
         private readonly ServerTimeSystem timeSystem = new();
         private readonly ClientWorldFrameCollector clientFrames = new();
         private readonly ServerMobRegistry mobRegistry = new();
-        private readonly ServerMobAffectReceiver mobAffects;
         private readonly ServerMobPublisher mobPublisher;
         private readonly ServerWorldBroadcaster broadcaster;
         private readonly ServerGhostManager ghosts;
@@ -42,15 +41,13 @@ namespace DeadCellsMultiplayerX.Server
         public long CurrentTimeStamp => timeSystem.Now;
         public ClientWorldFrameCollector ClientFrames => clientFrames;
         public ServerMobRegistry MobRegistry => mobRegistry;
-        public ServerMobAffectReceiver MobAffects => mobAffects;
         public ServerMobPublisher MobPublisher => mobPublisher;
         public ServerWorldBroadcaster Broadcaster => broadcaster;
         public ServerGhostManager Ghosts => ghosts;
 
         public ServerSession()
         {
-            mobAffects = new ServerMobAffectReceiver(mobRegistry);
-            mobPublisher = new ServerMobPublisher(mobRegistry, mobAffects);
+            mobPublisher = new ServerMobPublisher(mobRegistry);
             ghosts = new ServerGhostManager(this);
             broadcaster = new ServerWorldBroadcaster(clientFrames, mobPublisher, ghosts);
         }
@@ -210,7 +207,6 @@ namespace DeadCellsMultiplayerX.Server
         {
             // 关卡本体已在事件前加载 怪物也已完成注册 此处不能清空寄存器
             broadcaster.BeginEpoch(CurrentTimeStamp);
-            mobAffects.BeginEpoch(broadcaster.Epoch);
             ghosts.BeginEpoch(broadcaster.Epoch);
         }
 
@@ -219,7 +215,6 @@ namespace DeadCellsMultiplayerX.Server
             broadcaster.Clear();
             clientFrames.Clear();
             mobRegistry.BeginEpoch();
-            mobAffects.Clear();
             ghosts.Clear();
             base.MyDispose();
         }

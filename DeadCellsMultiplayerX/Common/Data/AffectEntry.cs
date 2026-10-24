@@ -22,6 +22,9 @@ namespace DeadCellsMultiplayerX.Common.Data
         [Key(6)] public double StartSec { get; set; }   // 首次出现时间
         [Key(7)] public double EndSec { get; set; }     // 结束时间 StartSec + T / baseFps
 
+        [Key(8)] public double RemainingSec { get; set; }  // 服务端采集时的剩余秒数
+        [Key(9)] public double ServerTimeSec { get; set; } // 服务端采集时刻
+
         [IgnoreMember]
         public AffectKey Key => new(A, UniqId, Val);
     }
